@@ -1,0 +1,150 @@
+
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Редактирование пациентки</h5>
+        <a href="/patients" class="btn btn-sm btn-secondary">
+          <i class="bi bi-arrow-left"></i> Назад
+        </a>
+      </div>
+      <div class="card-body">
+        <form method="post" action="/patients/<%= @patient.id %>">
+          <input type="hidden" name="_method" value="put">
+          
+          <div class="row g-3">
+            <div class="col-md-12">
+              <label for="patient_full_name" class="form-label">ФИО *</label>
+              <input type="text" class="form-control" id="patient_full_name" 
+                     name="patient[full_name]" value="<%= @patient.full_name %>" required>
+            </div>
+            
+            <div class="col-md-6">
+              <label for="patient_date_of_birth" class="form-label">Дата рождения *</label>
+              <input type="date" class="form-control" id="patient_date_of_birth" 
+                     name="patient[date_of_birth]" value="<%= @patient.date_of_birth %>" required>
+            </div>
+            
+            <div class="col-md-3">
+              <label for="patient_pregnancy_number" class="form-label">Беременность</label>
+              <input type="number" class="form-control" id="patient_pregnancy_number" 
+                     name="patient[pregnancy_number]" value="<%= @patient.pregnancy_number %>" min="1">
+            </div>
+            
+            <div class="col-md-3">
+              <label for="patient_birth_number" class="form-label">Роды</label>
+              <input type="number" class="form-control" id="patient_birth_number" 
+                     name="patient[birth_number]" value="<%= @patient.birth_number %>" min="1">
+            </div>
+            
+            <div class="col-md-6">
+              <label for="patient_expected_delivery_date" class="form-label">Дата родов</label>
+              <input type="date" class="form-control" id="patient_expected_delivery_date" 
+                     name="patient[expected_delivery_date]" value="<%= @patient.expected_delivery_date %>">
+            </div>
+            
+            <div class="col-md-6">
+              <label for="patient_status" class="form-label">Статус *</label>
+              <select class="form-select" id="patient_status" name="patient[status]" required>
+                <option value="роды не начались" <%= 'selected' if @patient.status == 'роды не начались' %>>Роды не начались</option>
+                <option value="в родах" <%= 'selected' if @patient.status == 'в родах' %>>В родах</option>
+                <option value="роды завершены" <%= 'selected' if @patient.status == 'роды завершены' %>>Роды завершены</option>
+              </select>
+            </div>
+            
+            <div class="col-md-6">
+              <label for="patient_labor_start_time" class="form-label">Время начала родов</label>
+              <input type="datetime-local" class="form-control" id="patient_labor_start_time" 
+                     name="patient[labor_start_time]" 
+                     value="<%= @patient.labor_start_time&.strftime('%Y-%m-%dT%H:%M') %>">
+            </div>
+            
+            <div class="col-md-6">
+              <label for="patient_water_break_time" class="form-label">Время отхождения вод</label>
+              <input type="datetime-local" class="form-control" id="patient_water_break_time" 
+                     name="patient[water_break_time]" 
+                     value="<%= @patient.water_break_time&.strftime('%Y-%m-%dT%H:%M') %>">
+            </div>
+            
+          <div class="col-12">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="patient_delivery_completed" 
+                     name="patient[delivery_completed]" value="true" 
+                     <%= 'checked' if @patient.delivery_completed %>>
+              <!-- Добавляем скрытое поле с значением false -->
+              <input type="hidden" name="patient[delivery_completed]" value="false">
+              <label class="form-check-label" for="patient_delivery_completed">
+                Роды завершены
+              </label>
+            </div>
+            <small class="form-text text-muted">
+              При отметке этого поля статус автоматически изменится на "роды завершены"
+            </small>
+          </div>
+          
+          <div class="mt-4 d-flex justify-content-between">
+            <div>
+              <button type="submit" class="btn btn-main">
+                <i class="bi bi-save"></i> Сохранить изменения
+              </button>
+              <a href="/patients" class="btn btn-secondary">Отмена</a>
+            </div>
+            
+            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+              <i class="bi bi-trash"></i> Удалить пациентку
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Модальное окно подтверждения удаления -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Подтверждение удаления</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Вы уверены, что хотите удалить пациентку <strong><%= @patient.full_name %></strong>?</p>
+        <p class="text-danger">Это действие нельзя отменить! Все данные измерений также будут удалены.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+        <form method="post" action="/patients/<%= @patient.id %>" class="d-inline">
+          <input type="hidden" name="_method" value="delete">
+          <button type="submit" class="btn btn-danger">Удалить</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const deliveryCompletedCheckbox = document.getElementById('patient_delivery_completed');
+  const statusSelect = document.getElementById('patient_status');
+  
+  // При изменении чекбокса "Роды завершены"
+  deliveryCompletedCheckbox.addEventListener('change', function() {
+    if (this.checked) {
+      statusSelect.value = 'роды завершены';
+    } else if (statusSelect.value === 'роды завершены') {
+      // Если снимаем галочку и статус был "роды завершены", меняем на "в родах"
+      statusSelect.value = 'в родах';
+    }
+  });
+  
+  // При изменении статуса
+  statusSelect.addEventListener('change', function() {
+    if (this.value === 'роды завершены') {
+      deliveryCompletedCheckbox.checked = true;
+    } else {
+      deliveryCompletedCheckbox.checked = false;
+    }
+  });
+});
+</script>

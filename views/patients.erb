@@ -1,0 +1,128 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 mb-0">Список пациенток</h1>
+  <a href="/patients/new" class="btn btn-main">
+    <i class="bi bi-plus-circle"></i> Добавить пациентку
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h5 class="card-title mb-0">Поиск и фильтрация</h5>
+  </div>
+  <div class="card-body">
+    <form method="get" class="row g-3">
+      <div class="col-md-6">
+        <input type="text" name="search" class="form-control" placeholder="Поиск по ФИО..." value="<%= @search_query %>">
+      </div>
+      <div class="col-md-4">
+        <select name="status" class="form-select">
+          <option value="">Все статусы</option>
+          <option value="роды не начались" <%= 'selected' if @status_filter == 'роды не начались' %>>Роды не начались</option>
+          <option value="в родах" <%= 'selected' if @status_filter == 'в родах' %>>В родах</option>
+          <option value="роды завершены" <%= 'selected' if @status_filter == 'роды завершены' %>>Роды завершены</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-main w-100">Применить</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="row">
+  <% @patients.each do |patient| %>
+    <div class="col-md-6 col-lg-4 mb-4">
+      <div class="card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="card-title mb-0">Пациентка #<%= patient.id %></h6>
+          <span class="status-badge badge bg-<%= patient.status == 'роды завершены' ? 'success' : patient.status == 'в родах' ? 'warning' : 'secondary' %>">
+            <%= patient.status %>
+          </span>
+        </div>
+        <div class="card-body">
+          <h6 class="card-subtitle mb-2"><%= patient.full_name %></h6>
+          <p class="card-text small mb-1">
+            <strong>Дата рождения:</strong> <%= patient.date_of_birth %>
+          </p>
+          <p class="card-text small mb-1">
+            <strong>Беременность:</strong> <%= patient.pregnancy_number %>
+          </p>
+          <p class="card-text small mb-1">
+            <strong>Роды:</strong> <%= patient.birth_number %>
+          </p>
+          <% if patient.expected_delivery_date %>
+            <p class="card-text small mb-1">
+              <strong>Дата родов:</strong> <%= patient.expected_delivery_date %>
+            </p>
+          <% end %>
+          
+          <% if patient.labor_start_time %>
+            <p class="card-text small mb-1">
+              <strong>Начало родов:</strong> <%= patient.labor_start_time.strftime('%d.%m.%Y %H:%M') %>
+            </p>
+          <% end %>
+          
+          <% if patient.status == 'в родах' && !patient.delivery_completed %>
+            <div class="mt-3">
+              <div id="timer-<%= patient.id %>" class="timer-normal text-center p-2 rounded status-badge">
+                <i class="bi bi-clock"></i>
+                <span id="timer-text-<%= patient.id %>">Таймер активен</span>
+              </div>
+            </div>
+          <% end %>
+        </div>
+        <div class="card-footer bg-transparent">
+          <div class="btn-group w-100" role="group">
+            <a href="/patients/<%= patient.id %>/partogram" class="btn btn-sm btn-main">
+              <i class="bi bi-clipboard-plus"></i> Партограмма
+            </a>
+            <a href="/patients/<%= patient.id %>/edit" class="btn btn-sm btn-secondary">
+              <i class="bi bi-pencil"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% end %>
+</div>
+
+<% if @patients.empty? %>
+  <div class="text-center py-5">
+    <i class="bi bi-people display-1 text-muted"></i>
+    <h4 class="text-muted mt-3">Пациентки не найдены</h4>
+    <p class="text-muted">Добавьте первую пациентку, чтобы начать работу</p>
+    <a href="/patients/new" class="btn btn-main">Добавить пациентку</a>
+  </div>
+<% end %>
+
+<script>
+// Обновление таймеров на странице списка пациентов
+function updateTimers() {
+  <% @patients.each do |patient| %>
+    <% if patient.status == 'в родах' && !patient.delivery_completed %>
+      fetch('/timer/status/<%= patient.id %>')
+        .then(response => response.json())
+        .then(data => {
+          const timerElement = document.getElementById('timer-<%= patient.id %>');
+          const timerText = document.getElementById('timer-text-<%= patient.id %>');
+          
+          if (timerElement && timerText) {
+            timerElement.className = 'text-center p-2 rounded status-badge timer-' + data.status;
+            
+            if (data.minutes !== null) {
+              timerText.textContent = 'Прошло: ' + data.minutes + ' мин';
+            }
+            
+            if (data.status === 'danger') {
+              timerText.textContent = 'ТРЕВОГА: ' + data.minutes + ' мин!';
+            }
+          }
+        });
+    <% end %>
+  <% end %>
+}
+
+// Обновляем таймеры каждые 30 секунд
+setInterval(updateTimers, 30000);
+updateTimers(); // Первоначальный вызов
+</script>

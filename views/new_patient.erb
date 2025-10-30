@@ -1,0 +1,56 @@
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0">Добавление новой пациентки</h5>
+      </div>
+      <div class="card-body">
+        <form method="post" action="/patients">
+          <div class="row g-3">
+            <div class="col-md-12">
+              <label for="patient_full_name" class="form-label">ФИО *</label>
+              <input type="text" class="form-control" id="patient_full_name" name="patient[full_name]" required>
+            </div>
+            
+            <div class="col-md-6">
+              <label for="patient_date_of_birth" class="form-label">Дата рождения *</label>
+              <input type="date" class="form-control" id="patient_date_of_birth" name="patient[date_of_birth]" required>
+            </div>
+            
+            <div class="col-md-3">
+              <label for="patient_pregnancy_number" class="form-label">Беременность</label>
+              <input type="number" class="form-control" id="patient_pregnancy_number" name="patient[pregnancy_number]" min="1">
+            </div>
+            
+            <div class="col-md-3">
+              <label for="patient_birth_number" class="form-label">Роды</label>
+              <input type="number" class="form-control" id="patient_birth_number" name="patient[birth_number]" min="1">
+            </div>
+            
+            <div class="col-md-6">
+              <label for="patient_expected_delivery_date" class="form-label">Дата родов</label>
+              <input type="date" class="form-control" id="patient_expected_delivery_date" name="patient[expected_delivery_date]">
+            </div>
+            
+            <div class="col-md-6">
+              <label for="patient_labor_start_time" class="form-label">Время начала родов</label>
+              <input type="datetime-local" class="form-control" id="patient_labor_start_time" name="patient[labor_start_time]">
+            </div>
+            
+            <div class="col-md-12">
+              <label for="patient_water_break_time" class="form-label">Время отхождения вод</label>
+              <input type="datetime-local" class="form-control" id="patient_water_break_time" name="patient[water_break_time]">
+            </div>
+          </div>
+          
+          <div class="mt-4">
+            <button type="submit" class="btn btn-main">
+              <i class="bi bi-save"></i> Сохранить пациентку
+            </button>
+            <a href="/patients" class="btn btn-secondary">Отмена</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
