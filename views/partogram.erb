@@ -143,12 +143,20 @@
       <div class="card-header">
         <h5 class="card-title mb-0">Новое измерение</h5>
       </div>
-      <div class="card-body">
-        <form method="post" action="/patients/<%= @patient.id %>/measurements">
+       <div class="card-body">
+        <form method="post" action="/patients/<%= @patient.id %>/measurements" id="measurement-form">
           <div class="mb-3">
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="use_current_time" checked>
+              <label class="form-check-label" for="use_current_time">
+                Использовать текущее время
+              </label>
+            </div>
             <label for="measurement_measurement_time" class="form-label">Время измерения</label>
             <input type="datetime-local" class="form-control" id="measurement_measurement_time" 
-                   name="measurement[measurement_time]" value="<%= Time.now.strftime('%Y-%m-%dT%H:%M') %>" required>
+                   name="measurement[measurement_time]" 
+                   value="<%= Time.now.strftime('%Y-%m-%dT%H:%M') %>" 
+                   disabled>
           </div>
 
           <div class="row g-2">
@@ -230,6 +238,21 @@
     </div>
   </div>
 </div>
+
+<div class="text-center text-muted small mb-2">
+  Текущее время сервера: <%= Time.now.strftime('%d.%m.%Y %H:%M') %> |
+  Локальное время: <span id="local-time"></span>
+</div>
+<script>
+// Показываем локальное время пользователя для отладки
+function updateLocalTime() {
+  const now = new Date();
+  document.getElementById('local-time').textContent = 
+    now.toLocaleDateString('ru-RU') + ' ' + now.toLocaleTimeString('ru-RU');
+}
+setInterval(updateLocalTime, 1000);
+updateLocalTime();
+</script>
 
 <script>
 // Таймер в реальном времени
@@ -327,4 +350,65 @@ document.addEventListener('DOMContentLoaded', function() {
     timer.start();
   }
 });
+</script>
+
+<script>
+// Управление галочкой "текущее время"
+document.addEventListener('DOMContentLoaded', function() {
+  const useCurrentTimeCheckbox = document.getElementById('use_current_time');
+  const timeInput = document.getElementById('measurement_measurement_time');
+  const measurementForm = document.getElementById('measurement-form');
+  
+  if (useCurrentTimeCheckbox && timeInput) {
+    // Функция для получения локального времени в правильном формате
+    function getLocalDateTime() {
+      const now = new Date();
+      
+      // Получаем компоненты локального времени
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+    
+    // Функция для обновления текущего времени
+    function updateCurrentTime() {
+      timeInput.value = getLocalDateTime();
+    }
+    
+    // Обработчик изменения галочки
+    useCurrentTimeCheckbox.addEventListener('change', function() {
+      if (this.checked) {
+        timeInput.disabled = true;
+        updateCurrentTime();
+      } else {
+        timeInput.disabled = false;
+        setTimeout(() => timeInput.focus(), 100);
+      }
+    });
+    
+    // Обновляем время каждую минуту, если галочка активна
+    setInterval(() => {
+      if (useCurrentTimeCheckbox.checked) {
+        updateCurrentTime();
+      }
+    }, 60000);
+    
+    // Обработчик отправки формы - ПРОСТО ОТПРАВЛЯЕМ ТО ЧТО В ПОЛЕ!
+    measurementForm.addEventListener('submit', function(e) {
+      if (useCurrentTimeCheckbox.checked) {
+        // Просто включаем поле и отправляем то значение, которое в нем есть
+        timeInput.disabled = false;
+        // Значение уже установлено в правильном локальном времени
+      }
+    });
+    
+    // Инициализируем начальное состояние
+    updateCurrentTime();
+  }
+});
+
 </script>

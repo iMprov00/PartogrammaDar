@@ -17,6 +17,12 @@
           <input type="hidden" name="_method" value="PUT">
           
           <div class="mb-3">
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="use_current_time_edit">
+              <label class="form-check-label" for="use_current_time_edit">
+                Использовать текущее время
+              </label>
+            </div>
             <label for="measurement_measurement_time" class="form-label">Дата и время измерения</label>
             <input type="datetime-local" class="form-control" id="measurement_measurement_time" 
                    name="measurement[measurement_time]" 
@@ -114,3 +120,34 @@
     </div>
   </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const useCurrentTimeCheckbox = document.getElementById('use_current_time_edit');
+  const timeInput = document.getElementById('measurement_measurement_time');
+  
+  if (useCurrentTimeCheckbox && timeInput) {
+    // Функция для получения локального времени
+    function getLocalDateTime() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+    
+    useCurrentTimeCheckbox.addEventListener('change', function() {
+      if (this.checked) {
+        // Устанавливаем текущее локальное время
+        timeInput.value = getLocalDateTime();
+        timeInput.disabled = true;
+      } else {
+        timeInput.disabled = false;
+        setTimeout(() => timeInput.focus(), 100);
+      }
+    });
+  }
+});
+</script>

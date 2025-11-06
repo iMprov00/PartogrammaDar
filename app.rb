@@ -3,6 +3,7 @@ require 'sinatra/activerecord'
 require './config/environment'
 require './lib/timer_manager'
 
+
   enable :sessions
   
   get '/' do
@@ -53,10 +54,18 @@ post '/patients/:id/measurements' do
   @patient = Patient.find(params[:id])
   @measurement = @patient.measurements.new(params[:measurement])
   
+  # ОТЛАДКА - посмотрим что приходит
+  puts "=== DEBUG: Measurement time from form ==="
+  puts "Raw measurement_time: #{params[:measurement][:measurement_time]}"
+  puts "Patient local time: #{Time.now}"
+  
   if @measurement.save
-    # Таймер автоматически обновится через колбэк
+    puts "=== DEBUG: Saved measurement time ==="
+    puts "Saved measurement_time: #{@measurement.measurement_time}"
     redirect "/patients/#{params[:id]}/partogram"
   else
+    puts "=== DEBUG: Save failed ==="
+    puts "Errors: #{@measurement.errors.full_messages}"
     @measurements = @patient.measurements.order(measurement_time: :asc)
     erb :partogram
   end
