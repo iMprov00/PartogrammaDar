@@ -403,3 +403,113 @@ body {
   padding: 20px;
   margin-bottom: 20px;
 }
+
+/* Стили для графиков */
+.chart-container {
+  position: relative;
+  height: 400px;
+  width: 100%;
+}
+
+.bg-main {
+  background: linear-gradient(135deg, var(--main-color) 0%, var(--main-color-dark) 100%) !important;
+}
+
+/* Адаптивность для таблицы */
+@media (max-width: 768px) {
+  .table-responsive {
+    font-size: 0.8rem;
+  }
+  
+  .chart-container {
+    height: 300px;
+  }
+}
+
+/* Стили для заголовков графиков */
+.card-header h5 {
+  font-weight: 600;
+}
+
+/* Улучшаем внешний вид таблицы */
+#measurementsTable th {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+
+#measurementsTable th:hover {
+  background-color: rgba(84, 198, 84, 0.1);
+}
+
+#measurementsTable th::after {
+  content: '↕';
+  position: absolute;
+  right: 8px;
+  opacity: 0.5;
+}
+
+/* Стили для печати */
+@media print {
+  .navbar, .footer, .btn, .no-print {
+    display: none !important;
+  }
+  
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 10pt;
+    line-height: 1.2;
+  }
+  
+  .container {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  .card {
+    border: 1px solid #000 !important;
+    box-shadow: none !important;
+    margin-bottom: 0.5cm;
+  }
+  
+  .table {
+    font-size: 8pt;
+  }
+  
+  .table th,
+  .table td {
+    padding: 0.1cm;
+  }
+}
+
+/* Стили для кнопки печати на экране */
+.btn-print {
+  background: linear-gradient(135deg, #54c654 0%, #3a8a3a 100%);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.btn-print:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(84, 198, 84, 0.3);
+  color: white;
+}
+
+.btn-group-sm .btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.table td {
+  vertical-align: middle;
+}

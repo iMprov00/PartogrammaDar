@@ -116,3 +116,43 @@ delete '/patients/:id' do
   patient.destroy
   redirect '/patients'
 end
+
+
+get '/patients/:id/charts' do
+  @patient = Patient.find(params[:id])
+  @measurements = @patient.measurements.order(measurement_time: :asc)
+  erb :charts
+end
+
+get '/patients/:id/print' do
+  @patient = Patient.find(params[:id])
+  @measurements = @patient.measurements.order(measurement_time: :asc)
+  erb :print, layout: false
+end
+
+# Маршрут для редактирования измерения
+get '/patients/:patient_id/measurements/:id/edit' do
+  @patient = Patient.find(params[:patient_id])
+  @measurement = @patient.measurements.find(params[:id])
+  erb :edit_measurement
+end
+
+# Маршрут для обновления измерения
+put '/patients/:patient_id/measurements/:id' do
+  @patient = Patient.find(params[:patient_id])
+  @measurement = @patient.measurements.find(params[:id])
+  
+  if @measurement.update(params[:measurement])
+    redirect "/patients/#{params[:patient_id]}/partogram"
+  else
+    erb :edit_measurement
+  end
+end
+
+# Маршрут для удаления измерения
+delete '/patients/:patient_id/measurements/:id' do
+  patient = Patient.find(params[:patient_id])
+  measurement = patient.measurements.find(params[:id])
+  measurement.destroy
+  redirect "/patients/#{params[:patient_id]}/partogram"
+end

@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Партограмма - <%= @patient.full_name %></title>
+  <style>
+    /* Стили для печати */
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 0.5cm;
+      }
+      
+      body {
+        font-family: 'Arial', sans-serif;
+        font-size: 10pt;
+        line-height: 1.2;
+        color: #000;
+        background: white;
+        margin: 0;
+        padding: 0;
+      }
+      
+      .no-print {
+        display: none !important;
+      }
+      
+      .print-break {
+        page-break-before: always;
+      }
+      
+      .print-break-avoid {
+        page-break-inside: avoid;
+      }
+      
+      .container {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        padding: 0;
+      }
+      
+      h1, h2, h3, h4 {
+        color: #000 !important;
+        margin: 0.3cm 0 0.2cm 0;
+      }
+      
+      h1 { font-size: 16pt; }
+      h2 { font-size: 14pt; }
+      h3 { font-size: 12pt; }
+      
+      .patient-info {
+        background: #f8f8f8;
+        border: 1px solid #ddd;
+        padding: 0.3cm;
+        margin-bottom: 0.3cm;
+        border-radius: 3px;
+      }
+      
+      .patient-info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 0.2cm;
+      }
+      
+      .info-item {
+        margin-bottom: 0.1cm;
+      }
+      
+      .info-label {
+        font-weight: bold;
+        display: inline-block;
+        width: 120px;
+      }
+      
+      .charts-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.3cm;
+        margin-bottom: 0.3cm;
+      }
+      
+      .chart-container {
+        border: 1px solid #ddd;
+        padding: 0.2cm;
+        background: white;
+        page-break-inside: avoid;
+      }
+      
+      .chart-title {
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 0.1cm;
+        font-size: 10pt;
+      }
+      
+      .chart-canvas {
+        width: 100% !important;
+        height: 3.5cm !important;
+      }
+      
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 8pt;
+        margin: 0.2cm 0;
+      }
+      
+      th, td {
+        border: 1px solid #000;
+        padding: 0.1cm 0.05cm;
+        text-align: center;
+        vertical-align: middle;
+      }
+      
+      th {
+        background: #f0f0f0 !important;
+        font-weight: bold;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+      }
+      
+      tr:nth-child(even) {
+        background: #f8f8f8 !important;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+      }
+      
+      .header {
+        text-align: center;
+        border-bottom: 2px solid #000;
+        padding-bottom: 0.2cm;
+        margin-bottom: 0.3cm;
+      }
+      
+      .timestamp {
+        text-align: right;
+        font-size: 9pt;
+        margin-bottom: 0.2cm;
+      }
+    }
+    
+    /* Стили для экрана (предпросмотр) */
+    @media screen {
+      body {
+        font-family: 'Arial', sans-serif;
+        font-size: 12pt;
+        line-height: 1.4;
+        color: #333;
+        background: #f5f5f5;
+        margin: 1cm;
+        padding: 0;
+      }
+      
+      .print-container {
+        background: white;
+        padding: 1cm;
+        box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        max-width: 21cm;
+        margin: 0 auto;
+      }
+      
+      .no-print {
+        text-align: center;
+        margin-bottom: 1cm;
+        padding: 1cm;
+        background: #e9ecef;
+        border-radius: 5px;
+      }
+      
+      .btn-print {
+        background: #54c654;
+        color: white;
+        border: none;
+        padding: 0.5cm 1cm;
+        border-radius: 5px;
+        font-size: 12pt;
+        cursor: pointer;
+        margin: 0 0.5cm;
+      }
+      
+      .btn-print:hover {
+        background: #3a8a3a;
+      }
+      
+      .btn-back {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 0.5cm 1cm;
+        border-radius: 5px;
+        font-size: 12pt;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+      }
+    }
+    
+    .compact-table th,
+    .compact-table td {
+      padding: 0.05cm 0.02cm;
+      font-size: 7pt;
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 0.1cm 0.2cm;
+      border-radius: 3px;
+      font-size: 8pt;
+      font-weight: bold;
+    }
+    
+    .status-active { background: #d4edda; color: #155724; }
+    .status-completed { background: #e2e3e5; color: #383d41; }
+  </style>
+</head>
+<body>
+  <div class="print-container">
+    <!-- Кнопки только для экрана -->
+    <div class="no-print">
+      <h2>Предпросмотр печати</h2>
+      <p>Эта страница оптимизирована для печати на бумаге А4. Нажмите кнопку для печати.</p>
+      <button class="btn-print" onclick="window.print()">🖨️ Печатать</button>
+      <a href="/patients/<%= @patient.id %>/charts" class="btn-back">← Назад к графикам</a>
+      <p style="margin-top: 0.5cm; font-size: 10pt; color: #666;">
+        <strong>Совет:</strong> В диалоге печати выберите "Портретная ориентация" и масштаб "По размеру"
+      </p>
+    </div>
+
+    <!-- Заголовок -->
+    <div class="header">
+      <h1>ПАРТОГРАММА</h1>
+      <h2>Медицинская документация</h2>
+      <div class="timestamp">
+        Сформировано: <%= Time.now.strftime('%d.%m.%Y %H:%M') %>
+      </div>
+    </div>
+
+    <!-- Информация о пациенте -->
+    <div class="patient-info print-break-avoid">
+      <h3>Данные пациентки</h3>
+      <div class="patient-info-grid">
+        <div class="info-item">
+          <span class="info-label">ФИО:</span>
+          <strong><%= @patient.full_name %></strong>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Дата рождения:</span>
+          <%= @patient.date_of_birth.strftime('%d.%m.%Y') %>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Срок беременности:</span>
+          <%= @patient.pregnancy_number %>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Роды:</span>
+          <%= @patient.birth_number %> 
+        </div>
+        <div class="info-item">
+          <span class="info-label">ПДР:</span>
+          <%= @patient.expected_delivery_date&.strftime('%d.%m.%Y') || 'не указана' %>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Начало родов:</span>
+          <%= @patient.labor_start_time&.strftime('%d.%m.%Y %H:%M') || 'не начались' %>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Статус:</span>
+          <span class="status-badge <%= @patient.delivery_completed ? 'status-completed' : 'status-active' %>">
+            <%= @patient.delivery_completed ? 'РОДЫ ЗАВЕРШЕНЫ' : 'АКТИВНЫЕ РОДЫ' %>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Графики -->
+    <div class="print-break-avoid">
+      <h3>Графики мониторинга</h3>
+      <div class="charts-grid">
+        <div class="chart-container">
+          <div class="chart-title">Сердцебиение плода (уд/мин)</div>
+          <canvas id="heartRateChart" class="chart-canvas"></canvas>
+        </div>
+        <div class="chart-container">
+          <div class="chart-title">Раскрытие шейки матки (см)</div>
+          <canvas id="cervixChart" class="chart-canvas"></canvas>
+        </div>
+        <div class="chart-container">
+          <div class="chart-title">Схватки (за 10 мин)</div>
+          <canvas id="contractionsChart" class="chart-canvas"></canvas>
+        </div>
+        <div class="chart-container">
+          <div class="chart-title">Артериальное давление</div>
+          <canvas id="pressureChart" class="chart-canvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Таблица измерений -->
+    <div class="print-break">
+      <h3>Таблица всех измерений</h3>
+      <table class="compact-table">
+        <thead>
+          <tr>
+            <th>Дата и время</th>
+            <th>Сердцебиение</th>
+            <th>Раскрытие (см)</th>
+            <th>Положение головки</th>
+            <th>Схватки</th>
+            <th>Околоплодные воды</th>
+            <th>Пульс</th>
+            <th>АД (сист/диаст)</th>
+            <th>Температура</th>
+            <th>Моча</th>
+            <th>Медикаменты</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @measurements.each do |measurement| %>
+            <tr>
+              <td>
+                <small class="text-muted"><%= measurement.measurement_time.strftime('%d.%m.%Y') %></small><br>
+                <%= measurement.measurement_time.strftime('%H:%M') %>
+              </td>
+              <td><%= measurement.fetal_heart_rate || '-' %></td>
+              <td><%= measurement.cervix_dilation || '-' %></td>
+              <td><%= measurement.head_position || '-' %></td>
+              <td><%= measurement.uterine_contractions || '-' %></td>
+              <td><%= measurement.amniotic_fluid || '-' %></td>
+              <td><%= measurement.pulse || '-' %></td>
+              <td><% if measurement.systolic_bp && measurement.diastolic_bp %><%= measurement.systolic_bp %>/<%= measurement.diastolic_bp %><% else %>-<% end %></td>
+              <td><%= measurement.temperature || '-' %></td>
+              <td><%= measurement.urine || '-' %></td>
+              <td style="text-align: left; font-size: 6pt;"><%= measurement.medications&.truncate(20) || '-' %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      
+      <% if @measurements.empty? %>
+        <p style="text-align: center; font-style: italic; margin: 0.5cm 0;">
+          Измерения отсутствуют
+        </p>
+      <% end %>
+    </div>
+
+    <!-- Подпись -->
+    <div style="margin-top: 0.5cm; border-top: 1px solid #000; padding-top: 0.2cm;">
+      <table style="border: none;">
+        <tr>
+          <td style="border: none; width: 50%; text-align: center;">
+            Врач: ____________________
+          </td>
+          <td style="border: none; width: 50%; text-align: center;">
+            Подпись: __________________
+          </td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const measurements = <%= @measurements.to_json %>;
+      
+      if (measurements.length === 0) {
+        return; // Не строим графики если нет данных
+      }
+      
+      const labels = measurements.map(m => {
+        const date = new Date(m.measurement_time);
+        return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+      });
+      
+      // График сердцебиения плода
+      new Chart(document.getElementById('heartRateChart'), {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: measurements.map(m => m.fetal_heart_rate),
+            borderColor: '#dc3545',
+            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+            borderWidth: 1,
+            tension: 0.3,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { 
+              min: 100, 
+              max: 160,
+              ticks: { font: { size: 8 } }
+            },
+            x: { 
+              ticks: { font: { size: 7 }, maxRotation: 45 }
+            }
+          }
+        }
+      });
+      
+      // График раскрытия шейки матки
+      new Chart(document.getElementById('cervixChart'), {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: measurements.map(m => m.cervix_dilation),
+            borderColor: '#54c654',
+            backgroundColor: 'rgba(84, 198, 84, 0.1)',
+            borderWidth: 1,
+            tension: 0.3,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { 
+              min: 0, 
+              max: 10,
+              ticks: { font: { size: 8 } }
+            },
+            x: { 
+              ticks: { font: { size: 7 }, maxRotation: 45 }
+            }
+          }
+        }
+      });
+      
+      // График схваток
+      new Chart(document.getElementById('contractionsChart'), {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: measurements.map(m => m.uterine_contractions),
+            borderColor: '#ffc107',
+            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+            borderWidth: 1,
+            tension: 0.3,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { 
+              min: 0, 
+              max: 10,
+              ticks: { font: { size: 8 } }
+            },
+            x: { 
+              ticks: { font: { size: 7 }, maxRotation: 45 }
+            }
+          }
+        }
+      });
+      
+      // График давления
+      new Chart(document.getElementById('pressureChart'), {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Сист.',
+              data: measurements.map(m => m.systolic_bp),
+              borderColor: '#dc3545',
+              borderWidth: 1,
+              tension: 0.3
+            },
+            {
+              label: 'Диаст.',
+              data: measurements.map(m => m.diastolic_bp),
+              borderColor: '#6f42c1',
+              borderWidth: 1,
+              tension: 0.3
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { 
+            legend: { 
+              display: true,
+              labels: { font: { size: 8 } }
+            } 
+          },
+          scales: {
+            y: { 
+              min: 60, 
+              max: 180,
+              ticks: { font: { size: 8 } }
+            },
+            x: { 
+              ticks: { font: { size: 7 }, maxRotation: 45 }
+            }
+          }
+        }
+      });
+    });
+  </script>
+</body>
+</html>

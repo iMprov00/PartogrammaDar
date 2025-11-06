@@ -1,0 +1,116 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 mb-0">Редактирование измерения</h1>
+  <a href="/patients/<%= @patient.id %>/partogram" class="btn btn-secondary">
+    <i class="bi bi-arrow-left"></i> Назад к партограмме
+  </a>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0">Измерение для: <%= @patient.full_name %></h5>
+        <small class="text-muted">Создано: <%= @measurement.created_at.strftime('%d.%m.%Y %H:%M') %></small>
+      </div>
+      <div class="card-body">
+        <form method="post" action="/patients/<%= @patient.id %>/measurements/<%= @measurement.id %>">
+          <input type="hidden" name="_method" value="PUT">
+          
+          <div class="mb-3">
+            <label for="measurement_measurement_time" class="form-label">Дата и время измерения</label>
+            <input type="datetime-local" class="form-control" id="measurement_measurement_time" 
+                   name="measurement[measurement_time]" 
+                   value="<%= @measurement.measurement_time.strftime('%Y-%m-%dT%H:%M') %>" required>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label for="measurement_fetal_heart_rate" class="form-label">Сердцебиение плода (уд/мин)</label>
+              <input type="number" class="form-control" id="measurement_fetal_heart_rate" 
+                     name="measurement[fetal_heart_rate]" min="60" max="200"
+                     value="<%= @measurement.fetal_heart_rate %>">
+            </div>
+            
+            <div class="col-md-6">
+              <label for="measurement_cervix_dilation" class="form-label">Раскрытие шейки (см)</label>
+              <input type="number" class="form-control" id="measurement_cervix_dilation" 
+                     name="measurement[cervix_dilation]" min="0" max="10" step="0.5"
+                     value="<%= @measurement.cervix_dilation %>">
+            </div>
+            
+            <div class="col-md-6">
+              <label for="measurement_head_position" class="form-label">Положение головки</label>
+              <input type="number" class="form-control" id="measurement_head_position" 
+                     name="measurement[head_position]" min="-5" max="5"
+                     value="<%= @measurement.head_position %>">
+            </div>
+            
+            <div class="col-md-6">
+              <label for="measurement_uterine_contractions" class="form-label">Сокращения/10мин</label>
+              <input type="number" class="form-control" id="measurement_uterine_contractions" 
+                     name="measurement[uterine_contractions]" min="0" max="10"
+                     value="<%= @measurement.uterine_contractions %>">
+            </div>
+            
+            <div class="col-md-6">
+              <label for="measurement_pulse" class="form-label">Пульс (уд/мин)</label>
+              <input type="number" class="form-control" id="measurement_pulse" 
+                     name="measurement[pulse]" min="40" max="200"
+                     value="<%= @measurement.pulse %>">
+            </div>
+            
+            <div class="col-md-6">
+              <label for="measurement_temperature" class="form-label">Температура (°C)</label>
+              <input type="number" class="form-control" id="measurement_temperature" 
+                     name="measurement[temperature]" min="35" max="42" step="0.1"
+                     value="<%= @measurement.temperature %>">
+            </div>
+            
+            <div class="col-md-6">
+              <label for="measurement_systolic_bp" class="form-label">АД верхнее</label>
+              <input type="number" class="form-control" id="measurement_systolic_bp" 
+                     name="measurement[systolic_bp]" min="60" max="250"
+                     value="<%= @measurement.systolic_bp %>">
+            </div>
+            
+            <div class="col-md-6">
+              <label for="measurement_diastolic_bp" class="form-label">АД нижнее</label>
+              <input type="number" class="form-control" id="measurement_diastolic_bp" 
+                     name="measurement[diastolic_bp]" min="40" max="150"
+                     value="<%= @measurement.diastolic_bp %>">
+            </div>
+            
+            <div class="col-12">
+              <label for="measurement_amniotic_fluid" class="form-label">Околоплодные воды</label>
+              <select class="form-select" id="measurement_amniotic_fluid" name="measurement[amniotic_fluid]">
+                <option value="">Выберите...</option>
+                <option value="прозрачные" <%= 'selected' if @measurement.amniotic_fluid == 'прозрачные' %>>Прозрачные</option>
+                <option value="зеленые" <%= 'selected' if @measurement.amniotic_fluid == 'зеленые' %>>Зеленые</option>
+                <option value="кровянистые" <%= 'selected' if @measurement.amniotic_fluid == 'кровянистые' %>>Кровянистые</option>
+                <option value="отсутствуют" <%= 'selected' if @measurement.amniotic_fluid == 'отсутствуют' %>>Отсутствуют</option>
+              </select>
+            </div>
+            
+            <div class="col-12">
+              <label for="measurement_urine" class="form-label">Моча</label>
+              <input type="text" class="form-control" id="measurement_urine" name="measurement[urine]"
+                     value="<%= @measurement.urine %>">
+            </div>
+            
+            <div class="col-12">
+              <label for="measurement_medications" class="form-label">Лекарственные средства</label>
+              <textarea class="form-control" id="measurement_medications" name="measurement[medications]" rows="3"><%= @measurement.medications %></textarea>
+            </div>
+          </div>
+
+          <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+            <a href="/patients/<%= @patient.id %>/partogram" class="btn btn-secondary me-md-2">Отмена</a>
+            <button type="submit" class="btn btn-main">
+              <i class="bi bi-check-circle"></i> Сохранить изменения
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

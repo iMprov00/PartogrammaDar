@@ -34,13 +34,12 @@
     <div class="col-md-6 col-lg-4 mb-4">
       <div class="card h-100">
         <div class="card-header d-flex justify-content-between align-items-center">
-          <h6 class="card-title mb-0">Пациентка #<%= patient.id %></h6>
+          <h6 class="card-title mb-0"><%= patient.full_name %></h6>
           <span class="status-badge badge bg-<%= patient.status == 'роды завершены' ? 'success' : patient.status == 'в родах' ? 'warning' : 'secondary' %>">
             <%= patient.status %>
           </span>
         </div>
         <div class="card-body">
-          <h6 class="card-subtitle mb-2"><%= patient.full_name %></h6>
           <p class="card-text small mb-1">
             <strong>Дата рождения:</strong> <%= patient.date_of_birth %>
           </p>
