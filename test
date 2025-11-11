@@ -1,0 +1,1068 @@
+проанализируй данный файл. после его анализа тебе нужно будет помочь мне модифицировать мою программу по партограмме беременной (она ruby sinatra active record). моя программа работает по следующему принципу: есть список пациентов которых можно вносить. у них есть статусы, которые важно оставить. когда заполняется партограмма пациентки, то вносятся рад измерений. нужно изменить то что должен вносить пользователь во время измерения в 1 временной промежуток партограммы. при этом концептуально то как это сделано менять не надо, лишь сами поля и т.п., так же нужно в поля, где есть предопредленные значения добавить возможность либо выбирать из предложенных значений, либо вписать вручную. далее нужно добавить страницу, на которой будет отображена готовая партограмма как из файла согласно воз партограмма модификация 2020.
+
+вот мой код
+
+app.rb require 'sinatra'
+require 'sinatra/activerecord'
+require './config/environment'
+require './lib/timer_manager'
+
+
+  enable :sessions
+  
+  get '/' do
+    erb :index
+  end
+  
+  get '/patients' do
+
+    @patients = Patient.all
+    @status_filter = params[:status]
+    @search_query = params[:search]
+    
+    if @status_filter && !@status_filter.empty?
+      @patients = @patients.where(status: @status_filter)
+    end
+    
+    if @search_query && !@search_query.empty?
+      @patients = @patients.where("full_name LIKE ?", "%#{@search_query}%")
+    end
+    
+    @patients = @patients.order(created_at: :desc)
+    erb :patients
+  end
+  
+  get '/patients/new' do
+    @patient = Patient.new
+    erb :new_patient
+  end
+  
+  post '/patients' do
+    @patient = Patient.new(params[:patient])
+    
+    if @patient.save
+      redirect '/patients'
+    else
+      erb :new_patient
+    end
+  end
+  
+  get '/patients/:id/partogram' do
+    @patient = Patient.find(params[:id])
+    @measurements = @patient.measurements.order(measurement_time: :asc)
+    @measurement = Measurement.new
+    erb :partogram
+  end
+  
+post '/patients/:id/measurements' do
+  @patient = Patient.find(params[:id])
+  @measurement = @patient.measurements.new(params[:measurement])
+  
+  # ОТЛАДКА - посмотрим что приходит
+  puts "=== DEBUG: Measurement time from form ==="
+  puts "Raw measurement_time: #{params[:measurement][:measurement_time]}"
+  puts "Patient local time: #{Time.now}"
+  
+  if @measurement.save
+    puts "=== DEBUG: Saved measurement time ==="
+    puts "Saved measurement_time: #{@measurement.measurement_time}"
+    redirect "/patients/#{params[:id]}/partogram"
+  else
+    puts "=== DEBUG: Save failed ==="
+    puts "Errors: #{@measurement.errors.full_messages}"
+    @measurements = @patient.measurements.order(measurement_time: :asc)
+    erb :partogram
+  end
+end
+
+post '/patients/:id/complete_delivery' do
+  @patient = Patient.find(params[:id])
+  @patient.complete_delivery
+  redirect "/patients/#{params[:id]}/partogram"
+end
+
+# Новый endpoint для получения состояния таймера в реальном времени
+get '/timer/status/:patient_id' do
+  content_type :json
+  patient = Patient.find(params[:patient_id])
+  
+  {
+    status: patient.timer_status,
+    minutes: patient.minutes_since_last_measurement,
+    seconds: patient.seconds_since_last_measurement,
+    time_until_next: patient.time_until_next_measurement,
+    delivery_completed: patient.delivery_completed,
+    labor_started: patient.labor_start_time.present?
+  }.to_json
+end
+
+get '/patients/:id/edit' do
+  @patient = Patient.find(params[:id])
+  erb :edit_patient
+end
+
+put '/patients/:id' do
+  @patient = Patient.find(params[:id])
+  
+  puts "=== DEBUG: Patient update started ==="
+  puts "Params received: #{params[:patient].inspect}"
+  puts "Current patient state:"
+  puts "  - status: #{@patient.status}"
+  puts "  - delivery_completed: #{@patient.delivery_completed}"
+  
+  if @patient.update(params[:patient])
+    puts "=== DEBUG: Patient update successful ==="
+    puts "New patient state:"
+    puts "  - status: #{@patient.status}"
+    puts "  - delivery_completed: #{@patient.delivery_completed}"
+    redirect '/patients'
+  else
+    puts "=== DEBUG: Patient update failed ==="
+    puts "Errors: #{@patient.errors.full_messages}"
+    erb :edit_patient
+  end
+end
+
+# Добавьте также маршрут для удаления пациента
+delete '/patients/:id' do
+  patient = Patient.find(params[:id])
+  patient.destroy
+  redirect '/patients'
+end
+
+
+get '/patients/:id/charts' do
+  @patient = Patient.find(params[:id])
+  @measurements = @patient.measurements.order(measurement_time: :asc)
+  erb :charts
+end
+
+get '/patients/:id/print' do
+  @patient = Patient.find(params[:id])
+  @measurements = @patient.measurements.order(measurement_time: :asc)
+  erb :print, layout: false
+end
+
+# Маршрут для редактирования измерения
+get '/patients/:patient_id/measurements/:id/edit' do
+  @patient = Patient.find(params[:patient_id])
+  @measurement = @patient.measurements.find(params[:id])
+  erb :edit_measurement
+end
+
+# Маршрут для обновления измерения
+put '/patients/:patient_id/measurements/:id' do
+  @patient = Patient.find(params[:patient_id])
+  @measurement = @patient.measurements.find(params[:id])
+  
+  if @measurement.update(params[:measurement])
+    redirect "/patients/#{params[:patient_id]}/partogram"
+  else
+    erb :edit_measurement
+  end
+end
+
+# Маршрут для удаления измерения
+delete '/patients/:patient_id/measurements/:id' do
+  patient = Patient.find(params[:patient_id])
+  measurement = patient.measurements.find(params[:id])
+  measurement.destroy
+  redirect "/patients/#{params[:patient_id]}/partogram"
+end
+
+layout.erb <!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= @title || "Партограмма ДАР" %></title>
+  
+  <link rel="icon" type="image/png" href="/images/favicon.png">
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .navbar-logo {
+      height: 32px;
+      transition: all 0.3s ease;
+    }
+    
+    .navbar-brand:hover .navbar-logo {
+      transform: rotate(-5deg) scale(1.1);
+    }
+    
+    .navbar-brand-text {
+      transition: all 0.3s ease;
+    }
+    
+    .navbar-brand:hover .navbar-brand-text {
+      text-shadow: 0 0 8px rgba(255,255,255,0.6);
+    }
+    
+    .navbar-links .nav-link {
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+    
+    .navbar-links .nav-link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    .navbar-main {
+      background: linear-gradient(135deg, #54c654 0%, #3a8a3a 100%) !important;
+      box-shadow: 0 2px 20px rgba(84, 198, 84, 0.3);
+    }
+    
+    .timer-danger {
+      background-color: #dc3545 !important;
+      color: white !important;
+      animation: pulse 1s infinite;
+    }
+    
+    .timer-warning {
+      background-color: #ffc107 !important;
+      color: black !important;
+    }
+    
+    .timer-normal {
+      background-color: #28a745 !important;
+      color: white !important;
+    }
+    
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.7; }
+      100% { opacity: 1; }
+    }
+    
+    .status-badge {
+      font-size: 0.8rem;
+      padding: 0.3rem 0.6rem;
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar navbar-expand-lg navbar-main mb-4">
+    <div class="container">
+      <a class="navbar-brand d-flex align-items-center" href="/">
+        <img src="/images/logo.png" class="navbar-logo me-2">
+        <span class="navbar-brand-text">Партограмма ДАР</span>
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto navbar-links">
+          <li class="nav-item">
+            <a class="nav-link <%= 'active' if request.path == '/' || request.path == '/patients' %>" href="/patients">
+              <i class="bi bi-people me-1"></i> Пациенты
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link <%= 'active' if request.path == '/patients/new' %>" href="/patients/new">
+              <i class="bi bi-plus-circle me-1"></i> Новая пациентка
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <% if session[:notice] %>
+      <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <%= session[:notice] %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+      <% session[:notice] = nil %>
+    <% end %>
+    
+    <% if session[:alert] %>
+      <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <%= session[:alert] %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+      <% session[:alert] = nil %>
+    <% end %>
+
+    <%= yield %>
+  </div>
+
+  <footer class="footer mt-5 py-3 bg-light">
+    <div class="container text-center">
+      <span class="text-muted">© <%= Time.now.year %> Партограмма ДАР <font size="1"><br><i>by iMprov</i></span>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/app.js"></script>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const navLinks = document.querySelectorAll('.navbar-links .nav-link');
+      
+      navLinks.forEach(link => {
+        link.addEventListener('mouseenter', function() {
+          this.style.transform = 'translateY(-2px)';
+          this.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+        });
+        
+        link.addEventListener('mouseleave', function() {
+          this.style.transform = 'translateY(0)';
+          this.style.boxShadow = 'none';
+        });
+      });
+      
+      const navbar = document.querySelector('.navbar-main');
+      navbar.style.opacity = '0';
+      navbar.style.transform = 'translateY(-20px)';
+      
+      setTimeout(() => {
+        navbar.style.transition = 'all 0.5s ease-out';
+        navbar.style.opacity = '1';
+        navbar.style.transform = 'translateY(0)';
+      }, 100);
+    });
+  </script>
+</body>
+</html>
+
+partogram.erb
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 mb-0">Партограмма: <%= @patient.full_name %></h1>
+  <div>
+    <% unless @patient.delivery_completed %>
+      <form method="post" action="/patients/<%= @patient.id %>/complete_delivery" class="d-inline">
+        <button type="submit" class="btn btn-success me-2">
+          <i class="bi bi-check-circle"></i> Завершить роды
+        </button>
+      </form>
+    <% end %>
+    <a href="/patients/<%= @patient.id %>/print" class="btn btn-main me-2" target="_blank">
+      <i class="bi bi-printer me-1"></i>Печатать
+    </a>
+    <a href="/patients/<%= @patient.id %>/charts" class="btn btn-main me-2">
+      <i class="bi bi-graph-up me-1"></i>Графики
+    </a>
+    <a href="/patients" class="btn btn-secondary">
+      <i class="bi bi-arrow-left"></i> Назад к списку
+    </a>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-8">
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Таймер измерений</h5>
+        <span class="status-badge badge bg-<%= @patient.status == 'роды завершены' ? 'success' : @patient.status == 'в родах' ? 'warning' : 'secondary' %>">
+          <%= @patient.status %>
+        </span>
+      </div>
+      <div class="card-body">
+        <% if @patient.status == 'в родах' && !@patient.delivery_completed %>
+          <div id="partogram-timer" class="text-center py-4">
+            <div id="timer-display" class="display-4 fw-bold mb-3 timer-<%= @patient.timer_status %>">
+              <span id="timer-minutes"><%= @patient.minutes_since_last_measurement || 0 %></span>:<span id="timer-seconds">00</span>
+            </div>
+            <p class="text-muted mb-3">
+              <% if @patient.last_measurement_time %>
+                Последнее измерение: <span id="last-measurement-time"><%= @patient.last_measurement_time.strftime('%H:%M') %></span>
+              <% else %>
+                Измерения еще не проводились
+              <% end %>
+            </p>
+            <div id="timer-alert" class="alert alert-info">
+
+              <span id="timer-message">Новые измерения должны проводиться каждые 30 минут</span>
+            </div>
+          </div>
+        <% elsif @patient.delivery_completed %>
+          <div class="text-center py-4">
+            <i class="bi bi-check-circle display-1 text-success"></i>
+            <h4 class="text-success mt-3">Роды завершены</h4>
+            <p class="text-muted">Таймер измерений отключен</p>
+          </div>
+        <% else %>
+          <div class="text-center py-4">
+            <i class="bi bi-clock display-1 text-muted"></i>
+            <h4 class="text-muted mt-3">Роды еще не начались</h4>
+            <p class="text-muted">Таймер активируется после первого измерения</p>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0">История измерений</h5>
+      </div>
+      <div class="card-body">
+        <% if @measurements.any? %>
+          <div class="table-responsive">
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>Дата и время</th>
+                  <th>Сердцебиение</th>
+                  <th>Положение головки</th>
+                  <th>Раскрытие</th>
+                  <th>Сокращения</th>
+                  <th>Пульс</th>
+                  <th>АД</th>
+                  <th>Температура</th>
+                  <th>Воды</th>
+                  <th>Моча</th>
+                  <th>Лек.средства</th>
+                  <th>Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% @measurements.each do |measurement| %>
+                  <tr>
+                    <td>
+                      <small class="text-muted"><%= measurement.measurement_time.strftime('%d.%m.%Y') %></small><br>
+                      <%= measurement.measurement_time.strftime('%H:%M') %>
+                    </td>
+                    <td><%= measurement.fetal_heart_rate %> уд/мин</td>
+                    <td><%= measurement.head_position %></td>
+                    <td><%= measurement.cervix_dilation %> см</td>
+                    <td><%= measurement.uterine_contractions %></td>
+                    <td><%= measurement.pulse %></td>
+                    <td><%= measurement.systolic_bp %>/<%= measurement.diastolic_bp %></td>
+                    <td><%= measurement.temperature %> °C</td>
+                    <td><%= measurement.amniotic_fluid %></td>
+                    <td><%= measurement.urine %></td>
+                    <td><%= measurement.medications %></td>
+                    <td>
+                      <div class="btn-group btn-group-sm">
+                        <a href="/patients/<%= @patient.id %>/measurements/<%= measurement.id %>/edit" 
+                           class="btn btn-outline-primary" 
+                           title="Редактировать">
+                          <i class="bi bi-pencil"></i>
+                        </a>
+                        <form method="post" 
+                              action="/patients/<%= @patient.id %>/measurements/<%= measurement.id %>" 
+                              class="d-inline"
+                              onsubmit="return confirm('Вы уверены, что хотите удалить это измерение?')">
+                          <input type="hidden" name="_method" value="DELETE">
+                          <button type="submit" class="btn btn-outline-danger" title="Удалить">
+                            <i class="bi bi-trash"></i>
+                          </button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% else %>
+          <div class="text-center py-4">
+            <i class="bi bi-clipboard-x display-1 text-muted"></i>
+            <h5 class="text-muted mt-3">Измерения отсутствуют</h5>
+            <p class="text-muted">Добавьте первое измерение</p>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0">Новое измерение</h5>
+      </div>
+       <div class="card-body">
+        <form method="post" action="/patients/<%= @patient.id %>/measurements" id="measurement-form">
+          <div class="mb-3">
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="use_current_time" checked>
+              <label class="form-check-label" for="use_current_time">
+                Использовать текущее время
+              </label>
+            </div>
+            <label for="measurement_measurement_time" class="form-label">Время измерения</label>
+            <input type="datetime-local" class="form-control" id="measurement_measurement_time" 
+                   name="measurement[measurement_time]" 
+                   value="<%= Time.now.strftime('%Y-%m-%dT%H:%M') %>" 
+                   disabled>
+          </div>
+
+          <div class="row g-2">
+            <div class="col-6">
+              <label for="measurement_fetal_heart_rate" class="form-label">Сердцебиение плода</label>
+              <input type="number" class="form-control" id="measurement_fetal_heart_rate" 
+                     name="measurement[fetal_heart_rate]" min="60" max="200">
+            </div>
+            
+            <div class="col-6">
+              <label for="measurement_cervix_dilation" class="form-label">Раскрытие шейки (см)</label>
+              <input type="number" class="form-control" id="measurement_cervix_dilation" 
+                     name="measurement[cervix_dilation]" min="0" max="10" step="0.5">
+            </div>
+            
+            <div class="col-6">
+              <label for="measurement_head_position" class="form-label">Положение головки</label>
+              <input type="number" class="form-control" id="measurement_head_position" 
+                     name="measurement[head_position]" min="-5" max="5">
+            </div>
+            
+            <div class="col-6">
+              <label for="measurement_uterine_contractions" class="form-label">Сокращения/10мин</label>
+              <input type="number" class="form-control" id="measurement_uterine_contractions" 
+                     name="measurement[uterine_contractions]" min="0" max="10">
+            </div>
+            
+            <div class="col-6">
+              <label for="measurement_pulse" class="form-label">Пульс</label>
+              <input type="number" class="form-control" id="measurement_pulse" 
+                     name="measurement[pulse]" min="40" max="200">
+            </div>
+            
+            <div class="col-6">
+              <label for="measurement_temperature" class="form-label">Температура</label>
+              <input type="number" class="form-control" id="measurement_temperature" 
+                     name="measurement[temperature]" min="35" max="42" step="0.1">
+            </div>
+            
+            <div class="col-6">
+              <label for="measurement_systolic_bp" class="form-label">АД верхнее</label>
+              <input type="number" class="form-control" id="measurement_systolic_bp" 
+                     name="measurement[systolic_bp]" min="60" max="250">
+            </div>
+            
+            <div class="col-6">
+              <label for="measurement_diastolic_bp" class="form-label">АД нижнее</label>
+              <input type="number" class="form-control" id="measurement_diastolic_bp" 
+                     name="measurement[diastolic_bp]" min="40" max="150">
+            </div>
+            
+            <div class="col-12">
+              <label for="measurement_amniotic_fluid" class="form-label">Околоплодные воды</label>
+              <select class="form-select" id="measurement_amniotic_fluid" name="measurement[amniotic_fluid]">
+                <option value="">Выберите...</option>
+                <option value="прозрачные">Прозрачные</option>
+                <option value="зеленые">Зеленые</option>
+                <option value="кровянистые">Кровянистые</option>
+                <option value="отсутствуют">Отсутствуют</option>
+              </select>
+            </div>
+            
+            <div class="col-12">
+              <label for="measurement_urine" class="form-label">Моча</label>
+              <input type="text" class="form-control" id="measurement_urine" name="measurement[urine]">
+            </div>
+            
+            <div class="col-12">
+              <label for="measurement_medications" class="form-label">Лекарственные средства</label>
+              <textarea class="form-control" id="measurement_medications" name="measurement[medications]" rows="2"></textarea>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-main w-100 mt-3">
+            <i class="bi bi-plus-circle"></i> Добавить измерение
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="text-center text-muted small mb-2">
+  Текущее время сервера: <%= Time.now.strftime('%d.%m.%Y %H:%M') %> |
+  Локальное время: <span id="local-time"></span>
+</div>
+<script>
+// Показываем локальное время пользователя для отладки
+function updateLocalTime() {
+  const now = new Date();
+  document.getElementById('local-time').textContent = 
+    now.toLocaleDateString('ru-RU') + ' ' + now.toLocaleTimeString('ru-RU');
+}
+setInterval(updateLocalTime, 1000);
+updateLocalTime();
+</script>
+
+<script>
+// Таймер в реальном времени
+class PartogramTimer {
+  constructor(patientId) {
+    this.patientId = patientId;
+    this.intervalId = null;
+    this.isRunning = false;
+  }
+
+  start() {
+    if (this.isRunning) return;
+    
+    this.isRunning = true;
+    this.updateTimer();
+    this.intervalId = setInterval(() => this.updateTimer(), 1000);
+  }
+
+  stop() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+    this.isRunning = false;
+  }
+
+  async updateTimer() {
+    try {
+      const response = await fetch(`/timer/status/${this.patientId}`);
+      const data = await response.json();
+      
+      this.updateDisplay(data);
+    } catch (error) {
+      console.error('Ошибка обновления таймера:', error);
+    }
+  }
+
+  updateDisplay(data) {
+    const timerDisplay = document.getElementById('timer-display');
+    const timerMinutes = document.getElementById('timer-minutes');
+    const timerSeconds = document.getElementById('timer-seconds');
+    const timerAlert = document.getElementById('timer-alert');
+    const timerMessage = document.getElementById('timer-message');
+
+    if (!timerDisplay) return;
+
+    // Обновляем статус таймера
+    timerDisplay.className = `display-4 fw-bold mb-3 timer-${data.status}`;
+
+    if (data.delivery_completed) {
+      timerMinutes.textContent = '00';
+      timerSeconds.textContent = '00';
+      this.stop();
+      return;
+    }
+
+    if (!data.labor_started) {
+      timerMinutes.textContent = '00';
+      timerSeconds.textContent = '00';
+      return;
+    }
+
+    // Обновляем время
+    const totalSeconds = data.seconds || 0;
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    timerMinutes.textContent = minutes.toString().padStart(2, '0');
+    timerSeconds.textContent = seconds.toString().padStart(2, '0');
+
+    // Обновляем сообщение и стиль предупреждения
+    if (data.status === 'danger') {
+      timerAlert.className = 'alert alert-danger';
+      timerMessage.innerHTML = '<i class="bi bi-exclamation-triangle"></i> ТРЕВОГА! Превышено время измерения!';
+    } else if (data.status === 'warning') {
+      timerAlert.className = 'alert alert-warning';
+      timerMessage.innerHTML = '<i class="bi bi-exclamation-circle"></i> Внимание! Скоро истечет время измерения';
+    } else {
+      timerAlert.className = 'alert alert-info';
+      const timeLeft = data.time_until_next || 1800;
+      const minutesLeft = Math.floor(timeLeft / 60);
+      timerMessage.innerHTML = `<i class="bi bi-info-circle"></i> Новое измерение через: ${minutesLeft} мин ${timeLeft % 60} сек`;
+    }
+  }
+}
+
+// Инициализация таймера при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+  const patientId = '<%= @patient.id %>';
+  const patientStatus = '<%= @patient.status %>';
+  const deliveryCompleted = <%= @patient.delivery_completed %>;
+
+  if (patientStatus === 'в родах' && !deliveryCompleted) {
+    const timer = new PartogramTimer(patientId);
+    timer.start();
+  }
+});
+</script>
+
+<script>
+// Управление галочкой "текущее время"
+document.addEventListener('DOMContentLoaded', function() {
+  const useCurrentTimeCheckbox = document.getElementById('use_current_time');
+  const timeInput = document.getElementById('measurement_measurement_time');
+  const measurementForm = document.getElementById('measurement-form');
+  
+  if (useCurrentTimeCheckbox && timeInput) {
+    // Функция для получения локального времени в правильном формате
+    function getLocalDateTime() {
+      const now = new Date();
+      
+      // Получаем компоненты локального времени
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+    
+    // Функция для обновления текущего времени
+    function updateCurrentTime() {
+      timeInput.value = getLocalDateTime();
+    }
+    
+    // Обработчик изменения галочки
+    useCurrentTimeCheckbox.addEventListener('change', function() {
+      if (this.checked) {
+        timeInput.disabled = true;
+        updateCurrentTime();
+      } else {
+        timeInput.disabled = false;
+        setTimeout(() => timeInput.focus(), 100);
+      }
+    });
+    
+    // Обновляем время каждую минуту, если галочка активна
+    setInterval(() => {
+      if (useCurrentTimeCheckbox.checked) {
+        updateCurrentTime();
+      }
+    }, 60000);
+    
+    // Обработчик отправки формы - ПРОСТО ОТПРАВЛЯЕМ ТО ЧТО В ПОЛЕ!
+    measurementForm.addEventListener('submit', function(e) {
+      if (useCurrentTimeCheckbox.checked) {
+        // Просто включаем поле и отправляем то значение, которое в нем есть
+        timeInput.disabled = false;
+        // Значение уже установлено в правильном локальном времени
+      }
+    });
+    
+    // Инициализируем начальное состояние
+    updateCurrentTime();
+  }
+});
+
+</script>
+
+app.js // Основные функции JavaScript для приложения
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Инициализация всех компонентов
+    initTimerUpdates();
+    initFormValidations();
+});
+
+// Функция для обновления таймеров
+function initTimerUpdates() {
+    console.log('Timer system initialized');
+}
+
+// Функция для валидации форм
+function initFormValidations() {
+    const forms = document.querySelectorAll('form');
+    
+    forms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const requiredFields = form.querySelectorAll('[required]');
+            let valid = true;
+            
+            requiredFields.forEach(field => {
+                if (!field.value.trim()) {
+                    valid = false;
+                    field.classList.add('is-invalid');
+                } else {
+                    field.classList.remove('is-invalid');
+                }
+            });
+            
+            if (!valid) {
+                e.preventDefault();
+                alert('Пожалуйста, заполните все обязательные поля');
+            }
+        });
+    });
+}
+
+// Функция для форматирования времени
+function formatTime(minutes) {
+    const hrs = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+}
+
+// Утилиты для работы с датами
+const DateUtils = {
+    formatDateTime: function(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleString('ru-RU');
+    },
+    
+    formatDate: function(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('ru-RU');
+    },
+    
+    getCurrentDateTime: function() {
+        return new Date().toISOString().slice(0, 16);
+    }
+};
+
+// Функция для подтверждения удаления
+function confirmDelete(patientName) {
+  return confirm(`Вы уверены, что хотите удалить пациентку "${patientName}"? Это действие нельзя отменить.`);
+}
+
+// Автоматическое обновление полей при изменении статуса
+document.addEventListener('DOMContentLoaded', function() {
+  const statusSelects = document.querySelectorAll('select[name="patient[status]"]');
+  
+  statusSelects.forEach(select => {
+    select.addEventListener('change', function() {
+      const deliveryCompletedCheckbox = document.querySelector('input[name="patient[delivery_completed]"]');
+      if (this.value === 'роды завершены' && deliveryCompletedCheckbox) {
+        deliveryCompletedCheckbox.checked = true;
+      } else if (deliveryCompletedCheckbox) {
+        deliveryCompletedCheckbox.checked = false;
+      }
+    });
+  });
+});
+
+require 'bundler/setup'
+
+Bundler.require
+
+configure :development do
+  ActiveRecord::Base.logger = Logger.new(STDOUT)
+end
+
+configure do
+  set :public_folder, 'public'
+  set :views, 'views'
+  
+  db_config = YAML.load(File.read('config/database.yml'))
+  ActiveRecord::Base.establish_connection(db_config['development'])
+end
+
+require_all 'models'
+
+class TimerManager
+  def self.check_expired_timers
+    patients_in_labor = Patient.where(status: 'в родах', delivery_completed: false)
+    
+    expired_patients = patients_in_labor.select do |patient|
+      patient.timer_status == 'danger'
+    end
+    
+    # Здесь можно добавить отправку уведомлений
+    if expired_patients.any?
+      puts "ВНИМАНИЕ! Следующие пациентки требуют срочного измерения:"
+      expired_patients.each do |patient|
+        minutes = patient.minutes_since_last_measurement
+        puts " - #{patient.full_name}: #{minutes} минут с последнего измерения"
+      end
+    end
+    
+    expired_patients
+  end
+end
+
+class Measurement < ActiveRecord::Base
+  belongs_to :patient
+  
+  validates :patient_id, presence: true
+  validates :measurement_time, presence: true  # Включаем обратно валидацию
+  
+  # УБИРАЕМ колбэк before_create который устанавливает время
+  # before_create :set_measurement_time
+  
+  after_create :update_patient_timer
+  
+  private
+  
+  # Убираем этот метод
+  # def set_measurement_time
+  #   self.measurement_time ||= Time.now
+  # end
+  
+  def update_patient_timer
+    if patient.measurements.count == 1
+      patient.start_labor
+    else
+      patient.reset_timer
+    end
+  end
+end
+
+class Patient < ActiveRecord::Base
+  has_many :measurements, dependent: :destroy
+  
+  STATUSES = ['роды не начались', 'в родах', 'роды завершены']
+  
+  validates :full_name, presence: true
+  validates :date_of_birth, presence: true
+  validates :status, inclusion: { in: STATUSES }
+  
+  before_save :sync_status_with_delivery_completed
+  after_save :log_patient_changes
+  
+  # Запуск таймера при первом измерении
+  def start_labor
+    return if labor_start_time.present?
+    
+    update(
+      labor_start_time: Time.now,
+      last_measurement_time: Time.now,
+      status: 'в родах',
+      delivery_completed: false
+    )
+  end
+  
+  # Сброс таймера при новом измерении
+  def reset_timer
+    return if delivery_completed?
+    
+    update(last_measurement_time: Time.now)
+  end
+  
+  # Завершение родов
+  def complete_delivery
+    update(
+      delivery_completed: true,
+      status: 'роды завершены',
+      last_measurement_time: nil
+    )
+  end
+  
+  def timer_status
+    return 'completed' if delivery_completed?
+    return 'not_started' if labor_start_time.nil? || last_measurement_time.nil?
+    
+    time_since_last_measurement = (Time.now - last_measurement_time).to_i
+    
+    if time_since_last_measurement > 1800 # 30 минут
+      'danger'
+    elsif time_since_last_measurement > 1500 # 25 минут
+      'warning'
+    else
+      'normal'
+    end
+  end
+  
+  def minutes_since_last_measurement
+    return nil if last_measurement_time.nil?
+    ((Time.now - last_measurement_time) / 60).to_i
+  end
+  
+  def seconds_since_last_measurement
+    return nil if last_measurement_time.nil?
+    (Time.now - last_measurement_time).to_i
+  end
+  
+  def time_until_next_measurement
+    return nil if last_measurement_time.nil?
+    [1800 - (Time.now - last_measurement_time).to_i, 0].max
+  end
+  
+  private
+  
+  def sync_status_with_delivery_completed
+    puts "=== DEBUG: sync_status_with_delivery_completed called ==="
+    puts "  Before changes:"
+    puts "  - status: #{status}"
+    puts "  - status_was: #{status_was}" if respond_to?(:status_was)
+    puts "  - delivery_completed: #{delivery_completed}"
+    puts "  - delivery_completed_was: #{delivery_completed_was}" if respond_to?(:delivery_completed_was)
+    puts "  - labor_start_time: #{labor_start_time}"
+    puts "  - last_measurement_time: #{last_measurement_time}"
+    
+    # Основная логика синхронизации
+    if delivery_completed?
+      puts "  - Setting status to 'роды завершены' because delivery_completed is true"
+      self.status = 'роды завершены'
+      self.last_measurement_time = nil
+    elsif status == 'роды завершены' && !delivery_completed?
+      puts "  - Setting status to 'в родах' because status was 'роды завершены' but delivery_completed is false"
+      self.status = 'в родах'
+    end
+    
+    # Устанавливаем labor_start_time, если статус "в родах" и время не установлено
+    if status == 'в родах' && labor_start_time.nil?
+      puts "  - Setting labor_start_time to now because status is 'в родах' and labor_start_time is nil"
+      self.labor_start_time = Time.now
+      self.last_measurement_time = Time.now if last_measurement_time.nil?
+    end
+    
+    # Если статус "роды не начались", сбрасываем таймер
+    if status == 'роды не начались'
+      puts "  - Resetting timer because status is 'роды не начались'"
+      self.labor_start_time = nil
+      self.last_measurement_time = nil
+      self.delivery_completed = false
+    end
+    
+    puts "  After changes:"
+    puts "  - status: #{status}"
+    puts "  - delivery_completed: #{delivery_completed}"
+    puts "  - labor_start_time: #{labor_start_time}"
+    puts "  - last_measurement_time: #{last_measurement_time}"
+    puts "=== DEBUG: sync_status_with_delivery_completed finished ==="
+  end
+  
+  def log_patient_changes
+    puts "=== DEBUG: Patient saved successfully ==="
+    puts "  Final values:"
+    puts "  - id: #{id}"
+    puts "  - status: #{status}"
+    puts "  - delivery_completed: #{delivery_completed}"
+    puts "  - labor_start_time: #{labor_start_time}"
+    puts "  - last_measurement_time: #{last_measurement_time}"
+    puts "=== DEBUG: Patient save finished ==="
+  end
+end
+
+class CreatePatients < ActiveRecord::Migration[6.1]
+  def change
+    create_table :patients do |t|
+      t.string :full_name, null: false
+      t.date :date_of_birth, null: false
+      t.integer :pregnancy_number
+      t.integer :birth_number
+      t.date :expected_delivery_date
+      t.datetime :labor_start_time
+      t.datetime :water_break_time
+      t.string :status, default: 'роды не начались'
+      t.datetime :last_measurement_time
+      t.boolean :delivery_completed, default: false
+      t.timestamps
+    end
+  end
+end
+
+class CreateMeasurements < ActiveRecord::Migration[6.1]
+  def change
+    create_table :measurements do |t|
+      t.references :patient, null: false
+      t.integer :fetal_heart_rate
+      t.string :amniotic_fluid
+      t.string :head_configuration
+      t.decimal :cervix_dilation, precision: 3, scale: 1
+      t.integer :head_position
+      t.integer :uterine_contractions
+      t.text :medications
+      t.string :oxytocin
+      t.string :iv_fluids
+      t.integer :pulse
+      t.integer :systolic_bp
+      t.integer :diastolic_bp
+      t.decimal :temperature, precision: 3, scale: 1
+      t.string :urine
+      t.datetime :measurement_time
+      t.timestamps
+    end
+  end
+end
+
+и отвечай на русском языке

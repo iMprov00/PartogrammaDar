@@ -14,6 +14,10 @@
     <a href="/patients/<%= @patient.id %>/charts" class="btn btn-main me-2">
       <i class="bi bi-graph-up me-1"></i>Графики
     </a>
+    <!-- В views/partogram.erb добавить кнопку для просмотра партограммы ВОЗ -->
+<a href="/patients/<%= @patient.id %>/who_partogram" class="btn btn-main me-2" target="_blank">
+  <i class="bi bi-file-earmark-medical me-1"></i>Партограмма ВОЗ
+</a>
     <a href="/patients" class="btn btn-secondary">
       <i class="bi bi-arrow-left"></i> Назад к списку
     </a>
@@ -139,103 +143,331 @@
   </div>
 
   <div class="col-lg-4">
-    <div class="card">
-      <div class="card-header">
-        <h5 class="card-title mb-0">Новое измерение</h5>
-      </div>
-       <div class="card-body">
-        <form method="post" action="/patients/<%= @patient.id %>/measurements" id="measurement-form">
-          <div class="mb-3">
-            <div class="form-check mb-2">
-              <input class="form-check-input" type="checkbox" id="use_current_time" checked>
-              <label class="form-check-label" for="use_current_time">
-                Использовать текущее время
-              </label>
-            </div>
-            <label for="measurement_measurement_time" class="form-label">Время измерения</label>
-            <input type="datetime-local" class="form-control" id="measurement_measurement_time" 
-                   name="measurement[measurement_time]" 
-                   value="<%= Time.now.strftime('%Y-%m-%dT%H:%M') %>" 
-                   disabled>
-          </div>
 
+<div class="card">
+  <div class="card-header">
+    <h5 class="card-title mb-0">Новое измерение</h5>
+  </div>
+  <div class="card-body">
+    <form method="post" action="/patients/<%= @patient.id %>/measurements" id="measurement-form">
+      <div class="mb-3">
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="use_current_time" checked>
+          <label class="form-check-label" for="use_current_time">
+            Использовать текущее время
+          </label>
+        </div>
+        <label for="measurement_measurement_time" class="form-label">Время измерения</label>
+        <input type="datetime-local" class="form-control" id="measurement_measurement_time" 
+               name="measurement[measurement_time]" 
+               value="<%= Time.now.strftime('%Y-%m-%dT%H:%M') %>" 
+               disabled>
+      </div>
+
+      <!-- Раздел 2. Поддерживающий уход -->
+      <div class="card mb-3">
+        <div class="card-header">
+          <h6 class="mb-0">Поддерживающий уход</h6>
+        </div>
+        <div class="card-body">
           <div class="row g-2">
-            <div class="col-6">
-              <label for="measurement_fetal_heart_rate" class="form-label">Сердцебиение плода</label>
+            <div class="col-md-6">
+              <label for="measurement_companion_present" class="form-label">Сопровождающее лицо</label>
+              <div class="input-group">
+                <select class="form-select" id="measurement_companion_present" name="measurement[companion_present]">
+                  <option value="">Выберите...</option>
+                  <% Measurement::COMPANION_OPTIONS.each do |option| %>
+                    <option value="<%= option %>"><%= option %></option>
+                  <% end %>
+                </select>
+                <input type="text" class="form-control" name="measurement[companion_present_custom]" placeholder="Или введите свое значение">
+              </div>
+            </div>
+            
+            <div class="col-md-6">
+              <label for="measurement_pain_relief" class="form-label">Обезболивание</label>
+              <div class="input-group">
+                <select class="form-select" id="measurement_pain_relief" name="measurement[pain_relief]">
+                  <option value="">Выберите...</option>
+                  <% Measurement::PAIN_RELIEF_OPTIONS.each do |option| %>
+                    <option value="<%= option %>"><%= option %></option>
+                  <% end %>
+                </select>
+                <input type="text" class="form-control" name="measurement[pain_relief_custom]" placeholder="Или введите свое значение">
+              </div>
+            </div>
+            
+            <div class="col-md-6">
+              <label for="measurement_oral_fluids" class="form-label">Пероральное введение жидкости</label>
+              <div class="input-group">
+                <select class="form-select" id="measurement_oral_fluids" name="measurement[oral_fluids]">
+                  <option value="">Выберите...</option>
+                  <% Measurement::ORAL_FLUIDS_OPTIONS.each do |option| %>
+                    <option value="<%= option %>"><%= option %></option>
+                  <% end %>
+                </select>
+                <input type="text" class="form-control" name="measurement[oral_fluids_custom]" placeholder="Или введите свое значение">
+              </div>
+            </div>
+            
+            <div class="col-md-6">
+              <label for="measurement_position" class="form-label">Положение</label>
+              <div class="input-group">
+                <select class="form-select" id="measurement_position" name="measurement[position]">
+                  <option value="">Выберите...</option>
+                  <% Measurement::POSITION_OPTIONS.each do |option| %>
+                    <option value="<%= option %>"><%= option %></option>
+                  <% end %>
+                </select>
+                <input type="text" class="form-control" name="measurement[position_custom]" placeholder="Или введите свое значение">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Раздел 3. Оказание помощи ребенку -->
+      <div class="card mb-3">
+        <div class="card-header">
+          <h6 class="mb-0">Оказание помощи ребенку</h6>
+        </div>
+        <div class="card-body">
+          <div class="row g-2">
+            <div class="col-md-4">
+              <label for="measurement_fetal_heart_rate" class="form-label">ЧСС плода (уд/мин)</label>
               <input type="number" class="form-control" id="measurement_fetal_heart_rate" 
                      name="measurement[fetal_heart_rate]" min="60" max="200">
             </div>
             
-            <div class="col-6">
-              <label for="measurement_cervix_dilation" class="form-label">Раскрытие шейки (см)</label>
-              <input type="number" class="form-control" id="measurement_cervix_dilation" 
-                     name="measurement[cervix_dilation]" min="0" max="10" step="0.5">
+            <div class="col-md-4">
+              <label for="measurement_fetal_heart_deceleration" class="form-label">Децелерация ЧСС</label>
+              <div class="input-group">
+                <select class="form-select" id="measurement_fetal_heart_deceleration" name="measurement[fetal_heart_deceleration]">
+                  <option value="">Выберите...</option>
+                  <% Measurement::FETAL_DECELERATION_OPTIONS.each do |option| %>
+                    <option value="<%= option %>"><%= option %></option>
+                  <% end %>
+                </select>
+                <input type="text" class="form-control" name="measurement[fetal_heart_deceleration_custom]" placeholder="Или введите свое значение">
+              </div>
             </div>
             
-            <div class="col-6">
-              <label for="measurement_head_position" class="form-label">Положение головки</label>
-              <input type="number" class="form-control" id="measurement_head_position" 
-                     name="measurement[head_position]" min="-5" max="5">
+            <div class="col-md-4">
+              <label for="measurement_amniotic_fluid" class="form-label">Амниотическая жидкость</label>
+              <div class="input-group">
+                <select class="form-select" id="measurement_amniotic_fluid" name="measurement[amniotic_fluid]">
+                  <option value="">Выберите...</option>
+                  <% Measurement::AMNIOTIC_FLUID_OPTIONS.each do |option| %>
+                    <option value="<%= option %>"><%= option %></option>
+                  <% end %>
+                </select>
+                <input type="text" class="form-control" name="measurement[amniotic_fluid_custom]" placeholder="Или введите свое значение">
+              </div>
             </div>
             
-            <div class="col-6">
-              <label for="measurement_uterine_contractions" class="form-label">Сокращения/10мин</label>
-              <input type="number" class="form-control" id="measurement_uterine_contractions" 
-                     name="measurement[uterine_contractions]" min="0" max="10">
+            <div class="col-md-4">
+              <label for="measurement_fetal_position" class="form-label">Внутриутробное расположение плода</label>
+              <div class="input-group">
+                <select class="form-select" id="measurement_fetal_position" name="measurement[fetal_position]">
+                  <option value="">Выберите...</option>
+                  <% Measurement::FETAL_POSITION_OPTIONS.each do |option| %>
+                    <option value="<%= option %>"><%= option %></option>
+                  <% end %>
+                </select>
+                <input type="text" class="form-control" name="measurement[fetal_position_custom]" placeholder="Или введите свое значение">
+              </div>
             </div>
             
-            <div class="col-6">
+            <div class="col-md-4">
+              <label for="measurement_caput_suc" class="form-label">Родовая опухоль</label>
+              <div class="input-group">
+                <select class="form-select" id="measurement_caput_suc" name="measurement[caput_suc]">
+                  <option value="">Выберите...</option>
+                  <% Measurement::CAPUT_SUC_OPTIONS.each do |option| %>
+                    <option value="<%= option %>"><%= option %></option>
+                  <% end %>
+                </select>
+                <input type="text" class="form-control" name="measurement[caput_suc_custom]" placeholder="Или введите свое значение">
+              </div>
+            </div>
+            
+            <div class="col-md-4">
+              <label for="measurement_head_configuration" class="form-label">Конфигурация головки</label>
+              <div class="input-group">
+                <select class="form-select" id="measurement_head_configuration" name="measurement[head_configuration]">
+                  <option value="">Выберите...</option>
+                  <% Measurement::CAPUT_SUC_OPTIONS.each do |option| %>
+                    <option value="<%= option %>"><%= option %></option>
+                  <% end %>
+                </select>
+                <input type="text" class="form-control" name="measurement[head_configuration_custom]" placeholder="Или введите свое значение">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Раздел 4. Оказание помощи матери -->
+      <div class="card mb-3">
+        <div class="card-header">
+          <h6 class="mb-0">Оказание помощи матери</h6>
+        </div>
+        <div class="card-body">
+          <div class="row g-2">
+            <div class="col-md-3">
               <label for="measurement_pulse" class="form-label">Пульс</label>
               <input type="number" class="form-control" id="measurement_pulse" 
                      name="measurement[pulse]" min="40" max="200">
             </div>
             
-            <div class="col-6">
-              <label for="measurement_temperature" class="form-label">Температура</label>
-              <input type="number" class="form-control" id="measurement_temperature" 
-                     name="measurement[temperature]" min="35" max="42" step="0.1">
-            </div>
-            
-            <div class="col-6">
-              <label for="measurement_systolic_bp" class="form-label">АД верхнее</label>
+            <div class="col-md-3">
+              <label for="measurement_systolic_bp" class="form-label">АД систолическое</label>
               <input type="number" class="form-control" id="measurement_systolic_bp" 
                      name="measurement[systolic_bp]" min="60" max="250">
             </div>
             
-            <div class="col-6">
-              <label for="measurement_diastolic_bp" class="form-label">АД нижнее</label>
+            <div class="col-md-3">
+              <label for="measurement_diastolic_bp" class="form-label">АД диастолическое</label>
               <input type="number" class="form-control" id="measurement_diastolic_bp" 
                      name="measurement[diastolic_bp]" min="40" max="150">
             </div>
             
-            <div class="col-12">
-              <label for="measurement_amniotic_fluid" class="form-label">Околоплодные воды</label>
-              <select class="form-select" id="measurement_amniotic_fluid" name="measurement[amniotic_fluid]">
+            <div class="col-md-3">
+              <label for="measurement_temperature" class="form-label">Температура (°C)</label>
+              <input type="number" class="form-control" id="measurement_temperature" 
+                     name="measurement[temperature]" min="35" max="42" step="0.1">
+            </div>
+            
+            <div class="col-md-6">
+              <label for="measurement_urine_protein" class="form-label">Моча: белок</label>
+              <div class="input-group">
+                <select class="form-select" id="measurement_urine_protein" name="measurement[urine_protein]">
+                  <option value="">Выберите...</option>
+                  <% Measurement::URINE_PROTEIN_OPTIONS.each do |option| %>
+                    <option value="<%= option %>"><%= option %></option>
+                  <% end %>
+                </select>
+                <input type="text" class="form-control" name="measurement[urine_protein_custom]" placeholder="Или введите свое значение">
+              </div>
+            </div>
+            
+            <div class="col-md-6">
+              <label for="measurement_urine_acetone" class="form-label">Моча: ацетон</label>
+              <div class="input-group">
+                <select class="form-select" id="measurement_urine_acetone" name="measurement[urine_acetone]">
+                  <option value="">Выберите...</option>
+                  <% Measurement::URINE_ACETONE_OPTIONS.each do |option| %>
+                    <option value="<%= option %>"><%= option %></option>
+                  <% end %>
+                </select>
+                <input type="text" class="form-control" name="measurement[urine_acetone_custom]" placeholder="Или введите свое значение">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Раздел 5. Ход родов -->
+      <div class="card mb-3">
+        <div class="card-header">
+          <h6 class="mb-0">Ход родов</h6>
+        </div>
+        <div class="card-body">
+          <div class="row g-2">
+            <div class="col-md-3">
+              <label for="measurement_cervix_dilation" class="form-label">Раскрытие шейки (см)</label>
+              <input type="number" class="form-control" id="measurement_cervix_dilation" 
+                     name="measurement[cervix_dilation]" min="0" max="10" step="0.5">
+            </div>
+            
+            <div class="col-md-3">
+              <label for="measurement_head_position" class="form-label">Продвижение плода</label>
+              <input type="number" class="form-control" id="measurement_head_position" 
+                     name="measurement[head_position]" min="-5" max="5">
+            </div>
+            
+            <div class="col-md-3">
+              <label for="measurement_uterine_contractions" class="form-label">Частота схваток (за 10 мин)</label>
+              <input type="number" class="form-control" id="measurement_uterine_contractions" 
+                     name="measurement[uterine_contractions]" min="0" max="10">
+            </div>
+            
+            <div class="col-md-3">
+              <label for="measurement_contractions_duration" class="form-label">Продолжительность схваток (сек)</label>
+              <input type="number" class="form-control" id="measurement_contractions_duration" 
+                     name="measurement[contractions_duration]" min="0" max="120">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Раздел 6. Введение лекарственных средств -->
+      <div class="card mb-3">
+        <div class="card-header">
+          <h6 class="mb-0">Введение лекарственных средств</h6>
+        </div>
+        <div class="card-body">
+          <div class="row g-2">
+            <div class="col-md-4">
+              <label for="measurement_oxytocin" class="form-label">Окситоцин</label>
+              <select class="form-select" id="measurement_oxytocin" name="measurement[oxytocin]">
                 <option value="">Выберите...</option>
-                <option value="прозрачные">Прозрачные</option>
-                <option value="зеленые">Зеленые</option>
-                <option value="кровянистые">Кровянистые</option>
-                <option value="отсутствуют">Отсутствуют</option>
+                <% Measurement::OXYTOCIN_OPTIONS.each do |option| %>
+                  <option value="<%= option %>"><%= option %></option>
+                <% end %>
+              </select>
+            </div>
+            
+            <div class="col-md-4">
+              <label for="measurement_oxytocin_dosage" class="form-label">Дозировка окситоцина</label>
+              <input type="text" class="form-control" id="measurement_oxytocin_dosage" 
+                     name="measurement[oxytocin_dosage]" placeholder="Ед/л, кап./мин">
+            </div>
+            
+            <div class="col-md-4">
+              <label for="measurement_iv_fluids" class="form-label">Внутривенные инфузии</label>
+              <select class="form-select" id="measurement_iv_fluids" name="measurement[iv_fluids]">
+                <option value="">Выберите...</option>
+                <% Measurement::IV_FLUIDS_OPTIONS.each do |option| %>
+                  <option value="<%= option %>"><%= option %></option>
+                <% end %>
               </select>
             </div>
             
             <div class="col-12">
-              <label for="measurement_urine" class="form-label">Моча</label>
-              <input type="text" class="form-control" id="measurement_urine" name="measurement[urine]">
+              <label for="measurement_other_medications" class="form-label">Другие лекарственные средства</label>
+              <textarea class="form-control" id="measurement_other_medications" name="measurement[other_medications]" rows="2"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Раздел 7. Совместное принятие решений -->
+      <div class="card mb-3">
+        <div class="card-header">
+          <h6 class="mb-0">Совместное принятие решений</h6>
+        </div>
+        <div class="card-body">
+          <div class="row g-2">
+            <div class="col-12">
+              <label for="measurement_assessment" class="form-label">Оценка состояния</label>
+              <textarea class="form-control" id="measurement_assessment" name="measurement[assessment]" rows="2"></textarea>
             </div>
             
             <div class="col-12">
-              <label for="measurement_medications" class="form-label">Лекарственные средства</label>
-              <textarea class="form-control" id="measurement_medications" name="measurement[medications]" rows="2"></textarea>
+              <label for="measurement_plan" class="form-label">План действий</label>
+              <textarea class="form-control" id="measurement_plan" name="measurement[plan]" rows="2"></textarea>
             </div>
           </div>
-
-          <button type="submit" class="btn btn-main w-100 mt-3">
-            <i class="bi bi-plus-circle"></i> Добавить измерение
-          </button>
-        </form>
+        </div>
       </div>
-    </div>
+
+      <button type="submit" class="btn btn-main w-100 mt-3">
+        <i class="bi bi-plus-circle"></i> Добавить измерение
+      </button>
+    </form>
+  </div>
+</div>
   </div>
 </div>
 

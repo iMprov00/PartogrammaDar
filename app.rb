@@ -50,22 +50,32 @@ require './lib/timer_manager'
     erb :partogram
   end
   
+# app.rb (обновленный метод для обработки измерений)
+# app.rb
+
 post '/patients/:id/measurements' do
   @patient = Patient.find(params[:id])
-  @measurement = @patient.measurements.new(params[:measurement])
   
-  # ОТЛАДКА - посмотрим что приходит
-  puts "=== DEBUG: Measurement time from form ==="
-  puts "Raw measurement_time: #{params[:measurement][:measurement_time]}"
-  puts "Patient local time: #{Time.now}"
+  # 1. Создаем копию параметров, чтобы не изменять оригинальный хэш
+  measurement_params = params[:measurement].dup
+  
+  # 2. Обрабатываем поля с пользовательскими значениями
+  # Если поле ..._custom заполнено, используем его значение вместо стандартного
+  %w[companion_present pain_relief oral_fluids position fetal_heart_deceleration amniotic_fluid fetal_position caput_suc head_configuration urine_protein urine_acetone].each do |field|
+    custom_key = "#{field}_custom"
+    if measurement_params[custom_key] && !measurement_params[custom_key].empty?
+      measurement_params[field] = measurement_params[custom_key]
+    end
+    # Удаляем лишний параметр, чтобы ActiveRecord не пытался его присвоить
+    measurement_params.delete(custom_key)
+  end
+  
+  # 3. Создаем объект с уже "очищенными" параметрами
+  @measurement = @patient.measurements.new(measurement_params)
   
   if @measurement.save
-    puts "=== DEBUG: Saved measurement time ==="
-    puts "Saved measurement_time: #{@measurement.measurement_time}"
     redirect "/patients/#{params[:id]}/partogram"
   else
-    puts "=== DEBUG: Save failed ==="
-    puts "Errors: #{@measurement.errors.full_messages}"
     @measurements = @patient.measurements.order(measurement_time: :asc)
     erb :partogram
   end
@@ -164,4 +174,11 @@ delete '/patients/:patient_id/measurements/:id' do
   measurement = patient.measurements.find(params[:id])
   measurement.destroy
   redirect "/patients/#{params[:patient_id]}/partogram"
+end
+
+# app.rb (добавить новый маршрут)
+get '/patients/:id/who_partogram' do
+  @patient = Patient.find(params[:id])
+  @measurements = @patient.measurements.order(measurement_time: :asc)
+  erb :who_partogram, layout: false  # Без основного макета для печати
 end

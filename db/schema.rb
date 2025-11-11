@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2) do
+ActiveRecord::Schema[8.0].define(version: 2023_11_28_000002) do
   create_table "measurements", force: :cascade do |t|
     t.integer "patient_id", null: false
     t.integer "fetal_heart_rate"
@@ -30,6 +30,20 @@ ActiveRecord::Schema[8.0].define(version: 2) do
     t.datetime "measurement_time", precision: nil
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "companion_present"
+    t.string "pain_relief"
+    t.string "oral_fluids"
+    t.string "position"
+    t.string "fetal_heart_deceleration"
+    t.string "fetal_position"
+    t.string "caput_suc"
+    t.string "urine_protein"
+    t.string "urine_acetone"
+    t.integer "contractions_duration"
+    t.string "oxytocin_dosage"
+    t.string "other_medications"
+    t.text "assessment"
+    t.text "plan"
     t.index ["patient_id"], name: "index_measurements_on_patient_id"
   end
 
@@ -46,5 +60,6 @@ ActiveRecord::Schema[8.0].define(version: 2) do
     t.boolean "delivery_completed", default: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "risk_factors"
   end
 end

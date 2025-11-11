@@ -1,0 +1,245 @@
+# views/who_partogram.erb
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Партограмма ВОЗ: <%= @patient.full_name %></title>
+  <style>
+    @media print {
+      .no-print { display: none; }
+      body { margin: 0; }
+    }
+    
+    .partogram-container {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+    }
+    
+    .partogram-header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .patient-info {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      border: 1px solid #000;
+      padding: 10px;
+    }
+    
+    .partogram-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .partogram-table th, .partogram-table td {
+      border: 1px solid #000;
+      padding: 5px;
+      text-align: center;
+      vertical-align: middle;
+    }
+    
+    .partogram-table .section-header {
+      background-color: #f0f0f0;
+      font-weight: bold;
+    }
+    
+    .partogram-table .time-column {
+      width: 60px;
+    }
+    
+    .partogram-table .critical-value {
+      background-color: #ffcccc;
+    }
+    
+    .graph-container {
+      height: 200px;
+      position: relative;
+    }
+    
+    .cervix-dilation-graph {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    
+    .fetal-descent-graph {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    
+    .graph-point {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: #000;
+    }
+    
+    .action-line {
+      position: absolute;
+      background-color: #ff0000;
+      height: 1px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="partogram-container">
+    <div class="partogram-header">
+      <h1>ПАРТОГРАММА ВОЗ</h1>
+      <h2>руководство для пользователя</h2>
+    </div>
+    
+    <div class="patient-info">
+      <div>
+        <strong>ФИО:</strong> <%= @patient.full_name %><br>
+        <strong>Число родов:</strong> <%= @patient.birth_number || "Не указано" %><br>
+        <strong>Начало родовой деятельности:</strong> <%= @patient.labor_start_time ? @patient.labor_start_time.strftime('%d.%m.%Y %H:%M') : "Не указано" %>
+      </div>
+      <div>
+        <strong>Разрыв плодных оболочек:</strong> <%= @patient.water_break_time ? @patient.water_break_time.strftime('%d.%m.%Y %H:%M') : "Не указано" %><br>
+        <strong>Факторы риска:</strong> <%= @patient.risk_factors || "Нет" %><br>
+        <strong>Статус:</strong> <%= @patient.status %>
+      </div>
+    </div>
+    
+    <table class="partogram-table">
+      <thead>
+        <tr>
+          <th class="time-column">Время</th>
+          <th colspan="4">Поддерживающий уход</th>
+          <th colspan="6">Оказание помощи ребенку</th>
+          <th colspan="5">Оказание помощи матери</th>
+          <th colspan="4">Ход родов</th>
+          <th colspan="3">Лекарственные средства</th>
+          <th colspan="2">Совместное принятие решений</th>
+        </tr>
+        <tr>
+          <th class="time-column"></th>
+          <th>Сопровождающее лицо</th>
+          <th>Обезболивание</th>
+          <th>Пероральные жидкости</th>
+          <th>Положение</th>
+          <th>ЧСС плода</th>
+          <th>Децелерация ЧСС</th>
+          <th>Амниотическая жидкость</th>
+          <th>Расположение плода</th>
+          <th>Родовая опухоль</th>
+          <th>Конфигурация головки</th>
+          <th>Пульс</th>
+          <th>АД</th>
+          <th>Температура</th>
+          <th>Моча (белок/ацетон)</th>
+          <th>Раскрытие шейки</th>
+          <th>Продвижение плода</th>
+          <th>Частота схваток</th>
+          <th>Продолжительность схваток</th>
+          <th>Окситоцин</th>
+          <th>Другие препараты</th>
+          <th>В/в инфузии</th>
+          <th>Оценка</th>
+          <th>План</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @measurements.each do |measurement| %>
+          <tr>
+            <td><%= measurement.measurement_time.strftime('%H:%M') %></td>
+            
+            <!-- Поддерживающий уход -->
+            <td><%= measurement.companion_present %></td>
+            <td><%= measurement.pain_relief %></td>
+            <td><%= measurement.oral_fluids %></td>
+            <td class="<%= 'critical-value' if measurement.position == 'На спине' %>"><%= measurement.position %></td>
+            
+            <!-- Оказание помощи ребенку -->
+            <td class="<%= 'critical-value' if measurement.fetal_heart_rate && (measurement.fetal_heart_rate < 110 || measurement.fetal_heart_rate >= 160) %>">
+              <%= measurement.fetal_heart_rate %>
+            </td>
+            <td class="<%= 'critical-value' if measurement.fetal_heart_deceleration == 'Поздние' %>">
+              <%= measurement.fetal_heart_deceleration %>
+            </td>
+            <td class="<%= 'critical-value' if measurement.amniotic_fluid&.include?('Меконий +++') || measurement.amniotic_fluid == 'Кровь' %>">
+              <%= measurement.amniotic_fluid %>
+            </td>
+            <td><%= measurement.fetal_position %></td>
+            <td><%= measurement.caput_suc %></td>
+            <td><%= measurement.head_configuration %></td>
+            
+            <!-- Оказание помощи матери -->
+            <td class="<%= 'critical-value' if measurement.pulse && (measurement.pulse < 60 || measurement.pulse >= 120) %>">
+              <%= measurement.pulse %>
+            </td>
+            <td class="<%= 'critical-value' if measurement.systolic_bp && (measurement.systolic_bp < 80 || measurement.systolic_bp >= 140) %>">
+              <%= "#{measurement.systolic_bp}/#{measurement.diastolic_bp}" %>
+            </td>
+            <td class="<%= 'critical-value' if measurement.temperature && (measurement.temperature < 35.0 || measurement.temperature >= 37.5) %>">
+              <%= measurement.temperature %>
+            </td>
+            <td><%= "#{measurement.urine_protein || '-'}/#{measurement.urine_acetone || '-'}" %></td>
+            
+            <!-- Ход родов -->
+            <td><%= measurement.cervix_dilation %></td>
+            <td><%= measurement.head_position %></td>
+            <td class="<%= 'critical-value' if measurement.uterine_contractions && (measurement.uterine_contractions <= 2 || measurement.uterine_contractions > 5) %>">
+              <%= measurement.uterine_contractions %>
+            </td>
+            <td class="<%= 'critical-value' if measurement.contractions_duration && (measurement.contractions_duration < 20 || measurement.contractions_duration > 60) %>">
+              <%= measurement.contractions_duration %>
+            </td>
+            
+            <!-- Лекарственные средства -->
+            <td><%= measurement.oxytocin == 'Да' ? measurement.oxytocin_dosage : 'Нет' %></td>
+            <td><%= measurement.other_medications %></td>
+            <td><%= measurement.iv_fluids %></td>
+            
+            <!-- Совместное принятие решений -->
+            <td><%= measurement.assessment %></td>
+            <td><%= measurement.plan %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+    
+    <!-- График раскрытия шейки матки и продвижения плода -->
+    <div class="graph-container">
+      <div class="cervix-dilation-graph">
+        <!-- Линия действия -->
+        <div class="action-line" style="top: 60%;"></div>
+        
+        <!-- Точки для раскрытия шейки матки -->
+        <% @measurements.each_with_index do |measurement, index| %>
+          <% if measurement.cervix_dilation %>
+            <div class="graph-point" style="left: <%= (index * 60) + 30 %>px; bottom: <%= measurement.cervix_dilation * 10 %>px;" title="Раскрытие: <%= measurement.cervix_dilation %> см"></div>
+          <% end %>
+        <% end %>
+      </div>
+      
+      <div class="fetal-descent-graph">
+        <!-- Точки для продвижения плода -->
+        <% @measurements.each_with_index do |measurement, index| %>
+          <% if measurement.head_position %>
+            <div class="graph-point" style="left: <%= (index * 60) + 30 %>px; bottom: <%= (measurement.head_position + 5) * 20 %>px;" title="Продвижение: <%= measurement.head_position %>"></div>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+    
+    <div class="no-print mt-4 text-center">
+      <a href="/patients/<%= @patient.id %>/partogram" class="btn btn-secondary">Назад</a>
+      <button onclick="window.print()" class="btn btn-primary">Печать</button>
+    </div>
+  </div>
+</body>
+</html>
