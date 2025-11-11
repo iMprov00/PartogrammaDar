@@ -1,126 +1,303 @@
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h1 class="h3 mb-0">Партограмма: <%= @patient.full_name %></h1>
-  <div>
-    <% unless @patient.delivery_completed %>
-      <form method="post" action="/patients/<%= @patient.id %>/complete_delivery" class="d-inline">
-        <button type="submit" class="btn btn-success me-2">
-          <i class="bi bi-check-circle"></i> Завершить роды
-        </button>
-      </form>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h4 mb-0">Партограмма: <%= @patient.full_name %></h1>
+  <div class="d-flex align-items-center gap-2">
+    <!-- Компактный таймер -->
+    <% if @patient.status == 'в родах' && !@patient.delivery_completed %>
+      <div class="compact-timer me-3">
+        <div class="timer-badge bg-<%= @patient.timer_status == 'danger' ? 'danger' : @patient.timer_status == 'warning' ? 'warning' : 'success' %>">
+          <i class="bi bi-clock me-1"></i>
+          <span id="compact-timer-minutes"><%= @patient.minutes_since_last_measurement || 0 %></span>:<span id="compact-timer-seconds">00</span>
+        </div>
+        <small class="text-muted d-block mt-1">
+          <% if @patient.last_measurement_time %>
+            Последнее: <%= @patient.last_measurement_time.strftime('%H:%M') %>
+          <% else %>
+            Нет измерений
+          <% end %>
+        </small>
+      </div>
     <% end %>
-    <a href="/patients/<%= @patient.id %>/print" class="btn btn-main me-2" target="_blank">
-      <i class="bi bi-printer me-1"></i>Печатать
-    </a>
-    <a href="/patients/<%= @patient.id %>/charts" class="btn btn-main me-2">
-      <i class="bi bi-graph-up me-1"></i>Графики
-    </a>
-    <!-- В views/partogram.erb добавить кнопку для просмотра партограммы ВОЗ -->
-<a href="/patients/<%= @patient.id %>/who_partogram" class="btn btn-main me-2" target="_blank">
-  <i class="bi bi-file-earmark-medical me-1"></i>Партограмма ВОЗ
-</a>
-    <a href="/patients" class="btn btn-secondary">
-      <i class="bi bi-arrow-left"></i> Назад к списку
-    </a>
+
+    <!-- Кнопки действий -->
+    <div class="btn-group">
+      <% unless @patient.delivery_completed %>
+        <form method="post" action="/patients/<%= @patient.id %>/complete_delivery" class="d-inline">
+          <button type="submit" class="btn btn-success btn-sm">
+            <i class="bi bi-check-circle"></i> Завершить
+          </button>
+        </form>
+      <% end %>
+      <a href="/patients/<%= @patient.id %>/print" class="btn btn-main btn-sm" target="_blank">
+        <i class="bi bi-printer"></i>
+      </a>
+      <a href="/patients/<%= @patient.id %>/charts" class="btn btn-main btn-sm">
+        <i class="bi bi-graph-up"></i>
+      </a>
+      <a href="/patients/<%= @patient.id %>/who_partogram" class="btn btn-main btn-sm" target="_blank">
+        <i class="bi bi-file-earmark-medical"></i>
+      </a>
+      <a href="/patients" class="btn btn-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i>
+      </a>
+    </div>
   </div>
 </div>
 
 <div class="row">
-  <div class="col-lg-8">
+  <!-- Основной контент - форма и таблица -->
+  <div class="col-12">
+    <!-- Карточка формы измерений -->
     <div class="card mb-4">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="card-title mb-0">Таймер измерений</h5>
-        <span class="status-badge badge bg-<%= @patient.status == 'роды завершены' ? 'success' : @patient.status == 'в родах' ? 'warning' : 'secondary' %>">
+      <div class="card-header d-flex justify-content-between align-items-center py-2">
+        <h6 class="mb-0">
+          <i class="bi bi-plus-circle me-1"></i>Новое измерение
+        </h6>
+        <span class="badge bg-<%= @patient.status == 'роды завершены' ? 'success' : @patient.status == 'в родах' ? 'warning' : 'secondary' %>">
           <%= @patient.status %>
         </span>
       </div>
-      <div class="card-body">
-        <% if @patient.status == 'в родах' && !@patient.delivery_completed %>
-          <div id="partogram-timer" class="text-center py-4">
-            <div id="timer-display" class="display-4 fw-bold mb-3 timer-<%= @patient.timer_status %>">
-              <span id="timer-minutes"><%= @patient.minutes_since_last_measurement || 0 %></span>:<span id="timer-seconds">00</span>
+      <div class="card-body p-3">
+        <form method="post" action="/patients/<%= @patient.id %>/measurements" id="measurement-form">
+          <!-- Время измерения -->
+          <div class="row mb-3">
+            <div class="col-12">
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="use_current_time" checked>
+                <label class="form-check-label" for="use_current_time">
+                  Использовать текущее время
+                </label>
+              </div>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">Время измерения</span>
+                <input type="datetime-local" class="form-control" id="measurement_measurement_time" 
+                       name="measurement[measurement_time]" 
+                       value="<%= Time.now.strftime('%Y-%m-%dT%H:%M') %>" 
+                       disabled>
+              </div>
             </div>
-            <p class="text-muted mb-3">
-              <% if @patient.last_measurement_time %>
-                Последнее измерение: <span id="last-measurement-time"><%= @patient.last_measurement_time.strftime('%H:%M') %></span>
-              <% else %>
-                Измерения еще не проводились
-              <% end %>
-            </p>
-            <div id="timer-alert" class="alert alert-info">
+          </div>
 
-              <span id="timer-message">Новые измерения должны проводиться каждые 30 минут</span>
+          <!-- Аккордеон для разделов формы -->
+          <div class="accordion" id="measurementAccordion">
+            
+            <!-- Поддерживающий уход -->
+            <div class="accordion-item">
+              <h6 class="accordion-header">
+                <button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSupport">
+                  <i class="bi bi-heart-pulse me-2"></i>Поддерживающий уход
+                </button>
+              </h6>
+              <div id="collapseSupport" class="accordion-collapse collapse" data-bs-parent="#measurementAccordion">
+                <div class="accordion-body p-2">
+                  <div class="row g-2">
+                    <div class="col-md-6">
+                      <label class="form-label small">Сопровождающее лицо</label>
+                      <select class="form-select form-select-sm" name="measurement[companion_present]">
+                        <option value="">Выберите...</option>
+                        <% Measurement::COMPANION_OPTIONS.each do |option| %>
+                          <option value="<%= option %>"><%= option %></option>
+                        <% end %>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label small">Обезболивание</label>
+                      <select class="form-select form-select-sm" name="measurement[pain_relief]">
+                        <option value="">Выберите...</option>
+                        <% Measurement::PAIN_RELIEF_OPTIONS.each do |option| %>
+                          <option value="<%= option %>"><%= option %></option>
+                        <% end %>
+                      </select>
+                    </div>
+                    <!-- Остальные поля раздела... -->
+                  </div>
+                </div>
+              </div>
             </div>
+
+            <!-- Помощь ребенку -->
+            <div class="accordion-item">
+              <h6 class="accordion-header">
+                <button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapseBaby">
+                  <i class="bi bi-baby me-2"></i>Помощь ребенку
+                </button>
+              </h6>
+              <div id="collapseBaby" class="accordion-collapse collapse" data-bs-parent="#measurementAccordion">
+                <div class="accordion-body p-2">
+                  <div class="row g-2">
+                    <div class="col-md-4">
+                      <label class="form-label small">ЧСС плода</label>
+                      <input type="number" class="form-control form-control-sm" name="measurement[fetal_heart_rate]" placeholder="уд/мин">
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label small">Раскрытие</label>
+                      <input type="number" class="form-control form-control-sm" name="measurement[cervix_dilation]" placeholder="см">
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label small">Положение головки</label>
+                      <input type="number" class="form-control form-control-sm" name="measurement[head_position]" placeholder="станция">
+                    </div>
+                    <!-- Остальные поля раздела... -->
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Помощь матери -->
+            <div class="accordion-item">
+              <h6 class="accordion-header">
+                <button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMother">
+                  <i class="bi bi-person-heart me-2"></i>Помощь матери
+                </button>
+              </h6>
+              <div id="collapseMother" class="accordion-collapse collapse" data-bs-parent="#measurementAccordion">
+                <div class="accordion-body p-2">
+                  <div class="row g-2">
+                    <div class="col-md-3">
+                      <label class="form-label small">Пульс</label>
+                      <input type="number" class="form-control form-control-sm" name="measurement[pulse]" placeholder="уд/мин">
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label small">АД сист.</label>
+                      <input type="number" class="form-control form-control-sm" name="measurement[systolic_bp]" placeholder="мм рт.ст.">
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label small">АД диаст.</label>
+                      <input type="number" class="form-control form-control-sm" name="measurement[diastolic_bp]" placeholder="мм рт.ст.">
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label small">Температура</label>
+                      <input type="number" class="form-control form-control-sm" name="measurement[temperature]" placeholder="°C" step="0.1">
+                    </div>
+                    <!-- Остальные поля раздела... -->
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Ход родов -->
+            <div class="accordion-item">
+              <h6 class="accordion-header">
+                <button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapseLabor">
+                  <i class="bi bi-graph-up me-2"></i>Ход родов
+                </button>
+              </h6>
+              <div id="collapseLabor" class="accordion-collapse collapse" data-bs-parent="#measurementAccordion">
+                <div class="accordion-body p-2">
+                  <div class="row g-2">
+                    <div class="col-md-4">
+                      <label class="form-label small">Схватки</label>
+                      <input type="number" class="form-control form-control-sm" name="measurement[uterine_contractions]" placeholder="за 10 мин">
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label small">Продолжительность</label>
+                      <input type="number" class="form-control form-control-sm" name="measurement[contractions_duration]" placeholder="сек">
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label small">Воды</label>
+                      <select class="form-select form-select-sm" name="measurement[amniotic_fluid]">
+                        <option value="">Выберите...</option>
+                        <% Measurement::AMNIOTIC_FLUID_OPTIONS.each do |option| %>
+                          <option value="<%= option %>"><%= option %></option>
+                        <% end %>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Лекарственные средства -->
+            <div class="accordion-item">
+              <h6 class="accordion-header">
+                <button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMeds">
+                  <i class="bi bi-capsule me-2"></i>Лекарственные средства
+                </button>
+              </h6>
+              <div id="collapseMeds" class="accordion-collapse collapse" data-bs-parent="#measurementAccordion">
+                <div class="accordion-body p-2">
+                  <div class="row g-2">
+                    <div class="col-md-6">
+                      <label class="form-label small">Окситоцин</label>
+                      <select class="form-select form-select-sm" name="measurement[oxytocin]">
+                        <option value="">Выберите...</option>
+                        <% Measurement::OXYTOCIN_OPTIONS.each do |option| %>
+                          <option value="<%= option %>"><%= option %></option>
+                        <% end %>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label small">Дозировка</label>
+                      <input type="text" class="form-control form-control-sm" name="measurement[oxytocin_dosage]" placeholder="Ед/л, кап./мин">
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label small">Другие средства</label>
+                      <textarea class="form-control form-control-sm" name="measurement[other_medications]" rows="2" placeholder="Введите препараты..."></textarea>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
-        <% elsif @patient.delivery_completed %>
-          <div class="text-center py-4">
-            <i class="bi bi-check-circle display-1 text-success"></i>
-            <h4 class="text-success mt-3">Роды завершены</h4>
-            <p class="text-muted">Таймер измерений отключен</p>
-          </div>
-        <% else %>
-          <div class="text-center py-4">
-            <i class="bi bi-clock display-1 text-muted"></i>
-            <h4 class="text-muted mt-3">Роды еще не начались</h4>
-            <p class="text-muted">Таймер активируется после первого измерения</p>
-          </div>
-        <% end %>
+
+          <button type="submit" class="btn btn-main w-100 mt-3 btn-sm">
+            <i class="bi bi-plus-circle me-1"></i> Добавить измерение
+          </button>
+        </form>
       </div>
     </div>
 
+    <!-- Таблица измерений -->
     <div class="card">
-      <div class="card-header">
-        <h5 class="card-title mb-0">История измерений</h5>
+      <div class="card-header py-2">
+        <h6 class="mb-0">
+          <i class="bi bi-clock-history me-1"></i>История измерений
+        </h6>
       </div>
-      <div class="card-body">
+      <div class="card-body p-0">
         <% if @measurements.any? %>
           <div class="table-responsive">
-            <table class="table table-striped">
-              <thead>
+            <table class="table table-sm table-striped mb-0">
+              <thead class="table-light">
                 <tr>
-                  <th>Дата и время</th>
-                  <th>Сердцебиение</th>
-                  <th>Положение головки</th>
-                  <th>Раскрытие</th>
-                  <th>Сокращения</th>
-                  <th>Пульс</th>
-                  <th>АД</th>
-                  <th>Температура</th>
-                  <th>Воды</th>
-                  <th>Моча</th>
-                  <th>Лек.средства</th>
-                  <th>Действия</th>
+                  <th width="120">Время</th>
+                  <th width="80">ЧСС</th>
+                  <th width="80">Раскрытие</th>
+                  <th width="80">Головка</th>
+                  <th width="80">Схватки</th>
+                  <th width="70">Пульс</th>
+                  <th width="90">АД</th>
+                  <th width="80">Темп.</th>
+                  <th width="80">Воды</th>
+                  <th width="100">Действия</th>
                 </tr>
               </thead>
               <tbody>
                 <% @measurements.each do |measurement| %>
                   <tr>
                     <td>
-                      <small class="text-muted"><%= measurement.measurement_time.strftime('%d.%m.%Y') %></small><br>
-                      <%= measurement.measurement_time.strftime('%H:%M') %>
+                      <small class="text-muted"><%= measurement.measurement_time.strftime('%H:%M') %></small><br>
+                      <small><%= measurement.measurement_time.strftime('%d.%m') %></small>
                     </td>
-                    <td><%= measurement.fetal_heart_rate %> уд/мин</td>
-                    <td><%= measurement.head_position %></td>
+                    <td><%= measurement.fetal_heart_rate %></td>
                     <td><%= measurement.cervix_dilation %> см</td>
+                    <td><%= measurement.head_position %></td>
                     <td><%= measurement.uterine_contractions %></td>
                     <td><%= measurement.pulse %></td>
-                    <td><%= measurement.systolic_bp %>/<%= measurement.diastolic_bp %></td>
-                    <td><%= measurement.temperature %> °C</td>
-                    <td><%= measurement.amniotic_fluid %></td>
-                    <td><%= measurement.urine %></td>
-                    <td><%= measurement.medications %></td>
+                    <td><small><%= measurement.systolic_bp %>/<%= measurement.diastolic_bp %></small></td>
+                    <td><%= measurement.temperature %>°</td>
+                    <td><small><%= measurement.amniotic_fluid %></small></td>
                     <td>
                       <div class="btn-group btn-group-sm">
                         <a href="/patients/<%= @patient.id %>/measurements/<%= measurement.id %>/edit" 
-                           class="btn btn-outline-primary" 
-                           title="Редактировать">
+                           class="btn btn-outline-primary btn-sm" title="Редактировать">
                           <i class="bi bi-pencil"></i>
                         </a>
-                        <form method="post" 
-                              action="/patients/<%= @patient.id %>/measurements/<%= measurement.id %>" 
+                        <form method="post" action="/patients/<%= @patient.id %>/measurements/<%= measurement.id %>" 
                               class="d-inline"
-                              onsubmit="return confirm('Вы уверены, что хотите удалить это измерение?')">
+                              onsubmit="return confirm('Удалить измерение?')">
                           <input type="hidden" name="_method" value="DELETE">
-                          <button type="submit" class="btn btn-outline-danger" title="Удалить">
+                          <button type="submit" class="btn btn-outline-danger btn-sm" title="Удалить">
                             <i class="bi bi-trash"></i>
                           </button>
                         </form>
@@ -133,382 +310,101 @@
           </div>
         <% else %>
           <div class="text-center py-4">
-            <i class="bi bi-clipboard-x display-1 text-muted"></i>
-            <h5 class="text-muted mt-3">Измерения отсутствуют</h5>
-            <p class="text-muted">Добавьте первое измерение</p>
+            <i class="bi bi-clipboard-x display-6 text-muted mb-3"></i>
+            <h6 class="text-muted">Измерения отсутствуют</h6>
+            <p class="text-muted small">Добавьте первое измерение</p>
           </div>
         <% end %>
       </div>
     </div>
   </div>
-
-  <div class="col-lg-4">
-
-<div class="card">
-  <div class="card-header">
-    <h5 class="card-title mb-0">Новое измерение</h5>
-  </div>
-  <div class="card-body">
-    <form method="post" action="/patients/<%= @patient.id %>/measurements" id="measurement-form">
-      <div class="mb-3">
-        <div class="form-check mb-2">
-          <input class="form-check-input" type="checkbox" id="use_current_time" checked>
-          <label class="form-check-label" for="use_current_time">
-            Использовать текущее время
-          </label>
-        </div>
-        <label for="measurement_measurement_time" class="form-label">Время измерения</label>
-        <input type="datetime-local" class="form-control" id="measurement_measurement_time" 
-               name="measurement[measurement_time]" 
-               value="<%= Time.now.strftime('%Y-%m-%dT%H:%M') %>" 
-               disabled>
-      </div>
-
-      <!-- Раздел 2. Поддерживающий уход -->
-      <div class="card mb-3">
-        <div class="card-header">
-          <h6 class="mb-0">Поддерживающий уход</h6>
-        </div>
-        <div class="card-body">
-          <div class="row g-2">
-            <div class="col-md-6">
-              <label for="measurement_companion_present" class="form-label">Сопровождающее лицо</label>
-              <div class="input-group">
-                <select class="form-select" id="measurement_companion_present" name="measurement[companion_present]">
-                  <option value="">Выберите...</option>
-                  <% Measurement::COMPANION_OPTIONS.each do |option| %>
-                    <option value="<%= option %>"><%= option %></option>
-                  <% end %>
-                </select>
-                <input type="text" class="form-control" name="measurement[companion_present_custom]" placeholder="Или введите свое значение">
-              </div>
-            </div>
-            
-            <div class="col-md-6">
-              <label for="measurement_pain_relief" class="form-label">Обезболивание</label>
-              <div class="input-group">
-                <select class="form-select" id="measurement_pain_relief" name="measurement[pain_relief]">
-                  <option value="">Выберите...</option>
-                  <% Measurement::PAIN_RELIEF_OPTIONS.each do |option| %>
-                    <option value="<%= option %>"><%= option %></option>
-                  <% end %>
-                </select>
-                <input type="text" class="form-control" name="measurement[pain_relief_custom]" placeholder="Или введите свое значение">
-              </div>
-            </div>
-            
-            <div class="col-md-6">
-              <label for="measurement_oral_fluids" class="form-label">Пероральное введение жидкости</label>
-              <div class="input-group">
-                <select class="form-select" id="measurement_oral_fluids" name="measurement[oral_fluids]">
-                  <option value="">Выберите...</option>
-                  <% Measurement::ORAL_FLUIDS_OPTIONS.each do |option| %>
-                    <option value="<%= option %>"><%= option %></option>
-                  <% end %>
-                </select>
-                <input type="text" class="form-control" name="measurement[oral_fluids_custom]" placeholder="Или введите свое значение">
-              </div>
-            </div>
-            
-            <div class="col-md-6">
-              <label for="measurement_position" class="form-label">Положение</label>
-              <div class="input-group">
-                <select class="form-select" id="measurement_position" name="measurement[position]">
-                  <option value="">Выберите...</option>
-                  <% Measurement::POSITION_OPTIONS.each do |option| %>
-                    <option value="<%= option %>"><%= option %></option>
-                  <% end %>
-                </select>
-                <input type="text" class="form-control" name="measurement[position_custom]" placeholder="Или введите свое значение">
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Раздел 3. Оказание помощи ребенку -->
-      <div class="card mb-3">
-        <div class="card-header">
-          <h6 class="mb-0">Оказание помощи ребенку</h6>
-        </div>
-        <div class="card-body">
-          <div class="row g-2">
-            <div class="col-md-4">
-              <label for="measurement_fetal_heart_rate" class="form-label">ЧСС плода (уд/мин)</label>
-              <input type="number" class="form-control" id="measurement_fetal_heart_rate" 
-                     name="measurement[fetal_heart_rate]" min="60" max="200">
-            </div>
-            
-            <div class="col-md-4">
-              <label for="measurement_fetal_heart_deceleration" class="form-label">Децелерация ЧСС</label>
-              <div class="input-group">
-                <select class="form-select" id="measurement_fetal_heart_deceleration" name="measurement[fetal_heart_deceleration]">
-                  <option value="">Выберите...</option>
-                  <% Measurement::FETAL_DECELERATION_OPTIONS.each do |option| %>
-                    <option value="<%= option %>"><%= option %></option>
-                  <% end %>
-                </select>
-                <input type="text" class="form-control" name="measurement[fetal_heart_deceleration_custom]" placeholder="Или введите свое значение">
-              </div>
-            </div>
-            
-            <div class="col-md-4">
-              <label for="measurement_amniotic_fluid" class="form-label">Амниотическая жидкость</label>
-              <div class="input-group">
-                <select class="form-select" id="measurement_amniotic_fluid" name="measurement[amniotic_fluid]">
-                  <option value="">Выберите...</option>
-                  <% Measurement::AMNIOTIC_FLUID_OPTIONS.each do |option| %>
-                    <option value="<%= option %>"><%= option %></option>
-                  <% end %>
-                </select>
-                <input type="text" class="form-control" name="measurement[amniotic_fluid_custom]" placeholder="Или введите свое значение">
-              </div>
-            </div>
-            
-            <div class="col-md-4">
-              <label for="measurement_fetal_position" class="form-label">Внутриутробное расположение плода</label>
-              <div class="input-group">
-                <select class="form-select" id="measurement_fetal_position" name="measurement[fetal_position]">
-                  <option value="">Выберите...</option>
-                  <% Measurement::FETAL_POSITION_OPTIONS.each do |option| %>
-                    <option value="<%= option %>"><%= option %></option>
-                  <% end %>
-                </select>
-                <input type="text" class="form-control" name="measurement[fetal_position_custom]" placeholder="Или введите свое значение">
-              </div>
-            </div>
-            
-            <div class="col-md-4">
-              <label for="measurement_caput_suc" class="form-label">Родовая опухоль</label>
-              <div class="input-group">
-                <select class="form-select" id="measurement_caput_suc" name="measurement[caput_suc]">
-                  <option value="">Выберите...</option>
-                  <% Measurement::CAPUT_SUC_OPTIONS.each do |option| %>
-                    <option value="<%= option %>"><%= option %></option>
-                  <% end %>
-                </select>
-                <input type="text" class="form-control" name="measurement[caput_suc_custom]" placeholder="Или введите свое значение">
-              </div>
-            </div>
-            
-            <div class="col-md-4">
-              <label for="measurement_head_configuration" class="form-label">Конфигурация головки</label>
-              <div class="input-group">
-                <select class="form-select" id="measurement_head_configuration" name="measurement[head_configuration]">
-                  <option value="">Выберите...</option>
-                  <% Measurement::CAPUT_SUC_OPTIONS.each do |option| %>
-                    <option value="<%= option %>"><%= option %></option>
-                  <% end %>
-                </select>
-                <input type="text" class="form-control" name="measurement[head_configuration_custom]" placeholder="Или введите свое значение">
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Раздел 4. Оказание помощи матери -->
-      <div class="card mb-3">
-        <div class="card-header">
-          <h6 class="mb-0">Оказание помощи матери</h6>
-        </div>
-        <div class="card-body">
-          <div class="row g-2">
-            <div class="col-md-3">
-              <label for="measurement_pulse" class="form-label">Пульс</label>
-              <input type="number" class="form-control" id="measurement_pulse" 
-                     name="measurement[pulse]" min="40" max="200">
-            </div>
-            
-            <div class="col-md-3">
-              <label for="measurement_systolic_bp" class="form-label">АД систолическое</label>
-              <input type="number" class="form-control" id="measurement_systolic_bp" 
-                     name="measurement[systolic_bp]" min="60" max="250">
-            </div>
-            
-            <div class="col-md-3">
-              <label for="measurement_diastolic_bp" class="form-label">АД диастолическое</label>
-              <input type="number" class="form-control" id="measurement_diastolic_bp" 
-                     name="measurement[diastolic_bp]" min="40" max="150">
-            </div>
-            
-            <div class="col-md-3">
-              <label for="measurement_temperature" class="form-label">Температура (°C)</label>
-              <input type="number" class="form-control" id="measurement_temperature" 
-                     name="measurement[temperature]" min="35" max="42" step="0.1">
-            </div>
-            
-            <div class="col-md-6">
-              <label for="measurement_urine_protein" class="form-label">Моча: белок</label>
-              <div class="input-group">
-                <select class="form-select" id="measurement_urine_protein" name="measurement[urine_protein]">
-                  <option value="">Выберите...</option>
-                  <% Measurement::URINE_PROTEIN_OPTIONS.each do |option| %>
-                    <option value="<%= option %>"><%= option %></option>
-                  <% end %>
-                </select>
-                <input type="text" class="form-control" name="measurement[urine_protein_custom]" placeholder="Или введите свое значение">
-              </div>
-            </div>
-            
-            <div class="col-md-6">
-              <label for="measurement_urine_acetone" class="form-label">Моча: ацетон</label>
-              <div class="input-group">
-                <select class="form-select" id="measurement_urine_acetone" name="measurement[urine_acetone]">
-                  <option value="">Выберите...</option>
-                  <% Measurement::URINE_ACETONE_OPTIONS.each do |option| %>
-                    <option value="<%= option %>"><%= option %></option>
-                  <% end %>
-                </select>
-                <input type="text" class="form-control" name="measurement[urine_acetone_custom]" placeholder="Или введите свое значение">
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Раздел 5. Ход родов -->
-      <div class="card mb-3">
-        <div class="card-header">
-          <h6 class="mb-0">Ход родов</h6>
-        </div>
-        <div class="card-body">
-          <div class="row g-2">
-            <div class="col-md-3">
-              <label for="measurement_cervix_dilation" class="form-label">Раскрытие шейки (см)</label>
-              <input type="number" class="form-control" id="measurement_cervix_dilation" 
-                     name="measurement[cervix_dilation]" min="0" max="10" step="0.5">
-            </div>
-            
-            <div class="col-md-3">
-              <label for="measurement_head_position" class="form-label">Продвижение плода</label>
-              <input type="number" class="form-control" id="measurement_head_position" 
-                     name="measurement[head_position]" min="-5" max="5">
-            </div>
-            
-            <div class="col-md-3">
-              <label for="measurement_uterine_contractions" class="form-label">Частота схваток (за 10 мин)</label>
-              <input type="number" class="form-control" id="measurement_uterine_contractions" 
-                     name="measurement[uterine_contractions]" min="0" max="10">
-            </div>
-            
-            <div class="col-md-3">
-              <label for="measurement_contractions_duration" class="form-label">Продолжительность схваток (сек)</label>
-              <input type="number" class="form-control" id="measurement_contractions_duration" 
-                     name="measurement[contractions_duration]" min="0" max="120">
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Раздел 6. Введение лекарственных средств -->
-      <div class="card mb-3">
-        <div class="card-header">
-          <h6 class="mb-0">Введение лекарственных средств</h6>
-        </div>
-        <div class="card-body">
-          <div class="row g-2">
-            <div class="col-md-4">
-              <label for="measurement_oxytocin" class="form-label">Окситоцин</label>
-              <select class="form-select" id="measurement_oxytocin" name="measurement[oxytocin]">
-                <option value="">Выберите...</option>
-                <% Measurement::OXYTOCIN_OPTIONS.each do |option| %>
-                  <option value="<%= option %>"><%= option %></option>
-                <% end %>
-              </select>
-            </div>
-            
-            <div class="col-md-4">
-              <label for="measurement_oxytocin_dosage" class="form-label">Дозировка окситоцина</label>
-              <input type="text" class="form-control" id="measurement_oxytocin_dosage" 
-                     name="measurement[oxytocin_dosage]" placeholder="Ед/л, кап./мин">
-            </div>
-            
-            <div class="col-md-4">
-              <label for="measurement_iv_fluids" class="form-label">Внутривенные инфузии</label>
-              <select class="form-select" id="measurement_iv_fluids" name="measurement[iv_fluids]">
-                <option value="">Выберите...</option>
-                <% Measurement::IV_FLUIDS_OPTIONS.each do |option| %>
-                  <option value="<%= option %>"><%= option %></option>
-                <% end %>
-              </select>
-            </div>
-            
-            <div class="col-12">
-              <label for="measurement_other_medications" class="form-label">Другие лекарственные средства</label>
-              <textarea class="form-control" id="measurement_other_medications" name="measurement[other_medications]" rows="2"></textarea>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Раздел 7. Совместное принятие решений -->
-      <div class="card mb-3">
-        <div class="card-header">
-          <h6 class="mb-0">Совместное принятие решений</h6>
-        </div>
-        <div class="card-body">
-          <div class="row g-2">
-            <div class="col-12">
-              <label for="measurement_assessment" class="form-label">Оценка состояния</label>
-              <textarea class="form-control" id="measurement_assessment" name="measurement[assessment]" rows="2"></textarea>
-            </div>
-            
-            <div class="col-12">
-              <label for="measurement_plan" class="form-label">План действий</label>
-              <textarea class="form-control" id="measurement_plan" name="measurement[plan]" rows="2"></textarea>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <button type="submit" class="btn btn-main w-100 mt-3">
-        <i class="bi bi-plus-circle"></i> Добавить измерение
-      </button>
-    </form>
-  </div>
-</div>
-  </div>
 </div>
 
-<div class="text-center text-muted small mb-2">
-  Текущее время сервера: <%= Time.now.strftime('%d.%m.%Y %H:%M') %> |
-  Локальное время: <span id="local-time"></span>
+<!-- Таймер сервера -->
+<div class="text-center text-muted small mt-3">
+  Сервер: <%= Time.now.strftime('%d.%m.%Y %H:%M') %> | 
+  Локально: <span id="local-time"></span>
 </div>
-<script>
-// Показываем локальное время пользователя для отладки
-function updateLocalTime() {
-  const now = new Date();
-  document.getElementById('local-time').textContent = 
-    now.toLocaleDateString('ru-RU') + ' ' + now.toLocaleTimeString('ru-RU');
+
+<style>
+.compact-timer {
+  text-align: center;
 }
-setInterval(updateLocalTime, 1000);
-updateLocalTime();
-</script>
+
+.timer-badge {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  font-size: 1.1rem;
+  font-family: 'Courier New', monospace;
+}
+
+.accordion-button {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.accordion-button:not(.collapsed) {
+  background-color: var(--main-color-light);
+  color: var(--main-color-dark);
+}
+
+.accordion-body {
+  padding: 0.75rem;
+}
+
+.form-control-sm, .form-select-sm {
+  font-size: 0.85rem;
+}
+
+.table th, .table td {
+  padding: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  min-height: auto;
+}
+
+.card-header {
+  padding: 0.75rem 1rem;
+}
+
+.card-body {
+  padding: 1rem;
+}
+
+/* Адаптивность для мобильных */
+@media (max-width: 768px) {
+  .compact-timer {
+    display: none;
+  }
+  
+  .btn-group {
+    flex-wrap: wrap;
+    justify-content: end;
+  }
+  
+  .table-responsive {
+    font-size: 0.8rem;
+  }
+}
+</style>
 
 <script>
-// Таймер в реальном времени
-class PartogramTimer {
+// Компактный таймер
+class CompactTimer {
   constructor(patientId) {
     this.patientId = patientId;
     this.intervalId = null;
-    this.isRunning = false;
   }
 
   start() {
-    if (this.isRunning) return;
-    
-    this.isRunning = true;
     this.updateTimer();
     this.intervalId = setInterval(() => this.updateTimer(), 1000);
-  }
-
-  stop() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
-    }
-    this.isRunning = false;
   }
 
   async updateTimer() {
@@ -518,129 +414,53 @@ class PartogramTimer {
       
       this.updateDisplay(data);
     } catch (error) {
-      console.error('Ошибка обновления таймера:', error);
+      console.error('Ошибка таймера:', error);
     }
   }
 
   updateDisplay(data) {
-    const timerDisplay = document.getElementById('timer-display');
-    const timerMinutes = document.getElementById('timer-minutes');
-    const timerSeconds = document.getElementById('timer-seconds');
-    const timerAlert = document.getElementById('timer-alert');
-    const timerMessage = document.getElementById('timer-message');
+    const minutesEl = document.getElementById('compact-timer-minutes');
+    const secondsEl = document.getElementById('compact-timer-seconds');
+    const timerBadge = document.querySelector('.timer-badge');
 
-    if (!timerDisplay) return;
+    if (!minutesEl || data.delivery_completed || !data.labor_started) return;
 
-    // Обновляем статус таймера
-    timerDisplay.className = `display-4 fw-bold mb-3 timer-${data.status}`;
-
-    if (data.delivery_completed) {
-      timerMinutes.textContent = '00';
-      timerSeconds.textContent = '00';
-      this.stop();
-      return;
-    }
-
-    if (!data.labor_started) {
-      timerMinutes.textContent = '00';
-      timerSeconds.textContent = '00';
-      return;
-    }
-
-    // Обновляем время
     const totalSeconds = data.seconds || 0;
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
 
-    timerMinutes.textContent = minutes.toString().padStart(2, '0');
-    timerSeconds.textContent = seconds.toString().padStart(2, '0');
+    minutesEl.textContent = minutes.toString().padStart(2, '0');
+    secondsEl.textContent = seconds.toString().padStart(2, '0');
 
-    // Обновляем сообщение и стиль предупреждения
+    // Обновляем цвет таймера
     if (data.status === 'danger') {
-      timerAlert.className = 'alert alert-danger';
-      timerMessage.innerHTML = '<i class="bi bi-exclamation-triangle"></i> ТРЕВОГА! Превышено время измерения!';
+      timerBadge.className = 'timer-badge bg-danger';
     } else if (data.status === 'warning') {
-      timerAlert.className = 'alert alert-warning';
-      timerMessage.innerHTML = '<i class="bi bi-exclamation-circle"></i> Внимание! Скоро истечет время измерения';
+      timerBadge.className = 'timer-badge bg-warning';
     } else {
-      timerAlert.className = 'alert alert-info';
-      const timeLeft = data.time_until_next || 1800;
-      const minutesLeft = Math.floor(timeLeft / 60);
-      timerMessage.innerHTML = `<i class="bi bi-info-circle"></i> Новое измерение через: ${minutesLeft} мин ${timeLeft % 60} сек`;
+      timerBadge.className = 'timer-badge bg-success';
     }
   }
 }
 
-// Инициализация таймера при загрузке страницы
+// Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', function() {
   const patientId = '<%= @patient.id %>';
   const patientStatus = '<%= @patient.status %>';
   const deliveryCompleted = <%= @patient.delivery_completed %>;
 
   if (patientStatus === 'в родах' && !deliveryCompleted) {
-    const timer = new PartogramTimer(patientId);
+    const timer = new CompactTimer(patientId);
     timer.start();
   }
-});
-</script>
 
-<script>
-// Управление галочкой "текущее время"
-document.addEventListener('DOMContentLoaded', function() {
-  const useCurrentTimeCheckbox = document.getElementById('use_current_time');
-  const timeInput = document.getElementById('measurement_measurement_time');
-  const measurementForm = document.getElementById('measurement-form');
-  
-  if (useCurrentTimeCheckbox && timeInput) {
-    // Функция для получения локального времени в правильном формате
-    function getLocalDateTime() {
-      const now = new Date();
-      
-      // Получаем компоненты локального времени
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      
-      return `${year}-${month}-${day}T${hours}:${minutes}`;
-    }
-    
-    // Функция для обновления текущего времени
-    function updateCurrentTime() {
-      timeInput.value = getLocalDateTime();
-    }
-    
-    // Обработчик изменения галочки
-    useCurrentTimeCheckbox.addEventListener('change', function() {
-      if (this.checked) {
-        timeInput.disabled = true;
-        updateCurrentTime();
-      } else {
-        timeInput.disabled = false;
-        setTimeout(() => timeInput.focus(), 100);
-      }
-    });
-    
-    // Обновляем время каждую минуту, если галочка активна
-    setInterval(() => {
-      if (useCurrentTimeCheckbox.checked) {
-        updateCurrentTime();
-      }
-    }, 60000);
-    
-    // Обработчик отправки формы - ПРОСТО ОТПРАВЛЯЕМ ТО ЧТО В ПОЛЕ!
-    measurementForm.addEventListener('submit', function(e) {
-      if (useCurrentTimeCheckbox.checked) {
-        // Просто включаем поле и отправляем то значение, которое в нем есть
-        timeInput.disabled = false;
-        // Значение уже установлено в правильном локальном времени
-      }
-    });
-    
-    // Инициализируем начальное состояние
-    updateCurrentTime();
+  // Локальное время
+  function updateLocalTime() {
+    const now = new Date();
+    document.getElementById('local-time').textContent = 
+      now.toLocaleDateString('ru-RU') + ' ' + now.toLocaleTimeString('ru-RU');
   }
+  setInterval(updateLocalTime, 1000);
+  updateLocalTime();
 });
-
 </script>
